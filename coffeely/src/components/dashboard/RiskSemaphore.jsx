@@ -52,7 +52,7 @@ function RecommendationCard({ icon: Icon, text }) {
   )
 }
 
-export default function RiskGauge({ riskLevel }) {
+export default function RiskSemaphore({ riskLevel }) {
   const { t } = useTranslation()
   const cfg = RISK_CONFIG[riskLevel] ?? RISK_CONFIG.healthy
   const { Icon } = cfg

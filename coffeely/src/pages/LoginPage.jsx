@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate }    from 'react-router-dom'
-import { useApp }         from '../contexts/AppContext'
+import { useApp }         from '../context/CoffeeShopContext'
 import { useLanguage }    from '../contexts/LanguageContext'
 import { useCurrency }    from '../contexts/CurrencyContext'
 import { useAccessibility } from '../contexts/AccessibilityContext'

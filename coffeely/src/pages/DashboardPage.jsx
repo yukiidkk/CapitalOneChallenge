@@ -2,12 +2,12 @@
  * DashboardPage.jsx — Dashboard post-login con Header + métricas + gráfica + semáforo
  */
 import { useTranslation }    from 'react-i18next'
-import { useApp }            from '../contexts/AppContext'
+import { useApp }            from '../context/CoffeeShopContext'
 import { useDashboardData }  from '../hooks/useDashboardData'
-import Header                from '../components/Header'
+import Navbar                from '../components/layout/Navbar'
 import MetricCard            from '../components/dashboard/MetricCard'
-import PerformanceChart      from '../components/dashboard/PerformanceChart'
-import RiskGauge             from '../components/dashboard/RiskGauge'
+import CashFlowChart         from '../components/dashboard/CashFlowChart'
+import RiskSemaphore         from '../components/dashboard/RiskSemaphore'
 
 const METRIC_CONFIG = [
   { key: 'expectedRevenue',  icon: null, accent: 'sage',       iconLabel: 'TrendingUp' },
@@ -66,7 +66,7 @@ export default function DashboardPage() {
         Ir al contenido
       </a>
 
-      <Header />
+      <Navbar />
 
       <main id="main-content" role="main" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex flex-col gap-8">
 
@@ -94,10 +94,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <section className="lg:col-span-2 bg-card-bg rounded-2xl border border-border shadow-soft p-8"
             aria-label={t('dashboard.chart.title')}>
-            <PerformanceChart data={chartData} />
+            <CashFlowChart data={chartData} />
           </section>
           <section aria-label={t('dashboard.risk.title')}>
-            <RiskGauge riskLevel={riskLevel} />
+            <RiskSemaphore riskLevel={riskLevel} />
           </section>
         </div>
 

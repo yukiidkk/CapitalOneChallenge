@@ -26,7 +26,7 @@ function DiamondDot({ cx, cy, fill }) {
   return <polygon points={`${cx},${cy-s} ${cx+s},${cy} ${cx},${cy+s} ${cx-s},${cy}`} fill={fill} opacity={0.85} />
 }
 
-export default function PerformanceChart({ data }) {
+export default function CashFlowChart({ data }) {
   const { t } = useTranslation()
   const { currency: currCode, CURRENCIES } = useCurrency()
   const symbol = CURRENCIES.find(c => c.code === currCode)?.symbol ?? '$'

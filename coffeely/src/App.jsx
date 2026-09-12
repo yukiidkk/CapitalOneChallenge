@@ -17,7 +17,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AccessibilityProvider } from './contexts/AccessibilityContext'
 import { LanguageProvider }      from './contexts/LanguageContext'
 import { CurrencyProvider }      from './contexts/CurrencyContext'
-import { AppProvider, useApp }   from './contexts/AppContext'
+import { AppProvider, useApp }   from './context/CoffeeShopContext'
 import ErrorBoundary             from './components/ErrorBoundary'
 
 import LandingPage    from './pages/LandingPage'

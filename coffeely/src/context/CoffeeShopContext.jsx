@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react'
-const AppContext = createContext(null)
+const CoffeeShopContext = createContext(null)
 
 const INITIAL_BUSINESS = {
   name: '', openTime: '08:00', closeTime: '22:00', currency: 'MXN',
@@ -17,13 +17,13 @@ export function AppProvider({ children }) {
   const updateBusiness   = (patch) => setBusiness(prev => ({ ...prev, ...patch }))
 
   return (
-    <AppContext.Provider value={{ user, login, logout, business, updateBusiness, finishOnboarding }}>
+    <CoffeeShopContext.Provider value={{ user, login, logout, business, updateBusiness, finishOnboarding }}>
       {children}
-    </AppContext.Provider>
+    </CoffeeShopContext.Provider>
   )
 }
 export function useApp() {
-  const ctx = useContext(AppContext)
+  const ctx = useContext(CoffeeShopContext)
   if (!ctx) throw new Error('useApp must be within AppProvider')
   return ctx
 }

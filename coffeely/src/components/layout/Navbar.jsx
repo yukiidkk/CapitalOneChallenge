@@ -1,17 +1,17 @@
 /**
- * Header.jsx — Barra de app para el dashboard (post-login).
+ * Navbar.jsx — Barra de app para el dashboard (post-login).
  * Incluye logo, nombre del negocio, selectores y logout.
  */
 import { useState } from 'react'
 import { useTranslation }    from 'react-i18next'
 import { useNavigate }       from 'react-router-dom'
-import { useLanguage }       from '../contexts/LanguageContext'
-import { useCurrency }       from '../contexts/CurrencyContext'
-import { useAccessibility }  from '../contexts/AccessibilityContext'
-import { useApp }            from '../contexts/AppContext'
+import { useLanguage }       from '../../contexts/LanguageContext'
+import { useCurrency }       from '../../contexts/CurrencyContext'
+import { useAccessibility }  from '../../contexts/AccessibilityContext'
+import { useApp }            from '../../context/CoffeeShopContext'
 import { LogOut, Eye, Menu, X } from 'lucide-react'
 
-export default function Header() {
+export default function Navbar() {
   const { t }                                   = useTranslation()
   const { language, changeLanguage, LANGUAGES } = useLanguage()
   const { currency, changeCurrency, CURRENCIES } = useCurrency()
