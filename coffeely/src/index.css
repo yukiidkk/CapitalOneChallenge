@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-dark-olive: #4B5136;
+    --color-coffee:     #6B4426;
+    --color-cream:      #E8DCC5;
+    --color-bg-light:   #F6F4EF;
+    --color-text-main:  #2C2D29;
+    --color-border:     #E0DACF;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-bg-light);
+    color: var(--color-text-main);
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Alto contraste */
+  [data-theme="high-contrast"] {
+    background-color: #000 !important;
+    color: #fff !important;
+  }
+  [data-theme="high-contrast"] * { border-color: #fff !important; }
+  [data-theme="high-contrast"] button,
+  [data-theme="high-contrast"] a { color: #FFD700 !important; }
+
+  /* Focus global */
+  *:focus-visible {
+    outline: 2px solid var(--color-coffee);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card-bg rounded-2xl border border-border shadow-soft;
+  }
+  .btn-primary {
+    @apply bg-coffee hover:bg-dark-olive text-white font-semibold
+           px-5 py-2.5 rounded-xl shadow-soft hover:shadow-elevated
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-coffee/50 focus:ring-offset-1;
+  }
+  .btn-ghost {
+    @apply text-text-main border border-border hover:border-coffee
+           bg-transparent font-medium px-4 py-2 rounded-xl transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-coffee/30;
+  }
+  .metric-label {
+    @apply text-xs font-semibold text-text-muted uppercase tracking-wider;
+  }
+}

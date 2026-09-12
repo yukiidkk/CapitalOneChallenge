@@ -1,0 +1,97 @@
+{
+  "nav": {
+    "login": "Log in", "logout": "Log out",
+    "language": "Language", "currency": "Currency", "accessibility": "Accessibility"
+  },
+  "header": { "tagline": "30-Day Liquidity · Operational Risk" },
+  "accessibility": {
+    "toggle": "High contrast", "on": "On", "off": "Off",
+    "label": "High-contrast mode for color-blind users"
+  },
+  "currency": { "MXN": "Mexican peso", "USD": "US dollar", "EUR": "Euro" },
+  "errors": {
+    "generic": "Something went wrong.", "requiredField": "Required.",
+    "invalidEmail": "Enter a valid email.", "passwordShort": "Min. 8 characters.",
+    "invalidTime": "Invalid time."
+  },
+  "auth": {
+    "welcomeBack": "Welcome back", "welcomeSub": "Manage your café with clarity",
+    "email": "Email", "emailPlaceholder": "you@yourcafe.com",
+    "password": "Password", "passwordPlaceholder": "••••••••",
+    "forgotPassword": "Forgot password?",
+    "loginBtn": "Log in", "loginGoogle": "Continue with Google",
+    "noAccount": "No account?", "register": "Sign up free",
+    "haveAccount": "Have an account?", "signIn": "Sign in",
+    "orContinueWith": "or continue with",
+    "recovery": "Reset password", "recoverySub": "We'll send a reset link.",
+    "recoverySend": "Send link", "recoveryBack": "Back to login",
+    "recoverySent": "Done! Check your inbox."
+  },
+  "onboarding": {
+    "title": "Tell us about your café", "subtitle": "Takes 2 minutes.",
+    "step": "Step {{current}} of {{total}}",
+    "businessName": "Business name", "businessNamePh": "e.g. The Corner Café",
+    "openTime": "Opening time", "closeTime": "Closing time",
+    "mainCurrency": "Primary currency",
+    "hasHistory": "Do you have financial records?",
+    "hasHistoryHint": "You can import past monthly data.",
+    "yes": "Yes", "no": "No, just starting",
+    "next": "Next", "back": "Back", "finish": "Let's go!",
+    "history": {
+      "title": "Load financial history", "subtitle": "Monthly data for accurate projections.",
+      "addMonth": "Add month", "month": "Month", "year": "Year",
+      "revenue": "Revenue", "expenses": "Expenses", "profit": "Net profit",
+      "removeMonth": "Remove"
+    },
+    "daily": {
+      "title": "Today's snapshot", "subtitle": "Starting fresh.",
+      "dailyRevenue": "Daily revenue", "dailyRevenuePh": "e.g. 2,500",
+      "availableCapital": "Available capital", "availableCapitalPh": "e.g. 15,000",
+      "fixedExpenses": "Monthly fixed expenses", "fixedExpensesPh": "e.g. 8,000",
+      "savingsGoal": "Savings goal", "savingsGoalPh": "e.g. 5,000"
+    }
+  },
+  "dashboard": {
+    "title": "Monthly overview", "subtitle": "Updated as of today",
+    "expectedRevenue": "Expected revenue", "expectedExpenses": "Expected expenses",
+    "minProfit": "Minimum expected profit", "liquidityForecast": "30-day liquidity forecast",
+    "vsLastMonth": "vs last month",
+    "chart": {
+      "title": "Revenue vs. Expenses — This month",
+      "revenue": "Revenue", "expenses": "Expenses",
+      "day": "Day", "amount": "Amount", "noData": "No data for this month."
+    },
+    "risk": {
+      "title": "Financial health",
+      "healthy": "Healthy", "warning": "Caution", "danger": "At risk",
+      "healthyDesc": "Your finances are in great shape.",
+      "warningDesc": "Warning signs detected. Review expenses.",
+      "dangerDesc": "Cash flow under pressure. Act soon.",
+      "justification": "Justification", "recommendations": "Recommendations",
+      "rec1_healthy": "Keep a 2-month fixed-expense reserve.",
+      "rec2_healthy": "Reinvest surplus in high-turnover inventory.",
+      "rec1_warning": "Follow up on outstanding invoices.",
+      "rec2_warning": "Cut non-essential purchases.",
+      "rec1_danger": "Collect accounts receivable immediately.",
+      "rec2_danger": "Negotiate payment terms with suppliers."
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "Every peso in your café, with a clear purpose",
+      "subtitle": "30-day liquidity simulation, AI-powered risk alerts and financial recommendations built for food service businesses in Mexico.",
+      "ctaPrimary": "Try Demo", "ctaSecondary": "Log In"
+    },
+    "features": {
+      "title": "Why Coffeely?",
+      "feature1": { "title": "30-Day Forecast", "desc": "See critical payroll and supplier payment days before running out of cash." },
+      "feature2": { "title": "Accessible Risk Gauge", "desc": "Instant financial diagnosis with plain-language justifications." },
+      "feature3": { "title": "Built for Cafés", "desc": "Quick daily capture of cash and transfer sales — no accounting jargon." }
+    }
+  },
+  "modules": {
+    "dashboard": "Dashboard", "cashflow": "Cash Flow", "expenses": "Expenses",
+    "income": "Income", "inventory": "Inventory", "reports": "Reports", "settings": "Settings"
+  },
+  "placeholders": { "comingSoon": "Coming soon", "empty": "No data" }
+}
