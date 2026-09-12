@@ -22,6 +22,7 @@ import ErrorBoundary             from './components/ErrorBoundary'
 
 import LandingPage    from './pages/LandingPage'
 import LoginPage      from './pages/LoginPage'
+import RegisterPage   from './pages/RegisterPage'
 import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage  from './pages/DashboardPage'
 
@@ -36,6 +37,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/"           element={<LandingPage />} />
       <Route path="/login"      element={<LoginPage />} />
+      <Route path="/registro"   element={<RegisterPage />} />
       <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
       <Route path="/dashboard"  element={<RequireAuth><DashboardPage /></RequireAuth>} />
       <Route path="*"           element={<Navigate to="/" replace />} />

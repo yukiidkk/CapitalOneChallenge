@@ -29,7 +29,7 @@ export default function CtaFooterCard() {
 
         {/* CTA principal — elemento más llamativo */}
         <Link
-          to="/login"
+          to="/registro"
           className="inline-flex items-center gap-2 flex-shrink-0
                      bg-cream hover:bg-white text-coffee
                      text-base font-bold px-8 py-4 rounded-xl

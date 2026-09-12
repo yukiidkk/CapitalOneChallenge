@@ -1,42 +1,52 @@
 /**
- * LoginPage.jsx — Tres modos: login / register / recovery
+ * LoginPage.jsx — Dos modos: login / recovery
+ * El registro es una ruta separada: /registro → RegisterPage.jsx
  */
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useNavigate }    from 'react-router-dom'
-import { useApp }         from '../context/CoffeeShopContext'
-import { useLanguage }    from '../contexts/LanguageContext'
-import { useCurrency }    from '../contexts/CurrencyContext'
-import { useAccessibility } from '../contexts/AccessibilityContext'
-import FormField          from '../components/ui/FormField'
+import { useState }            from 'react'
+import { Link, useNavigate }   from 'react-router-dom'
+import { useTranslation }      from 'react-i18next'
+import { useGoogleLogin }      from '@react-oauth/google'
+import { useApp }              from '../context/CoffeeShopContext'
+import { useLanguage }         from '../contexts/LanguageContext'
+import { useAccessibility }    from '../contexts/AccessibilityContext'
+import FormField               from '../components/ui/FormField'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
+/* ── Controles de idioma + contraste (sin selector de moneda) ── */
 function AuthControls() {
   const { t } = useTranslation()
   const { language, changeLanguage, LANGUAGES } = useLanguage()
-  const { currency, changeCurrency, CURRENCIES } = useCurrency()
-  const { highContrast, toggleHighContrast } = useAccessibility()
+  const { highContrast, toggleHighContrast }    = useAccessibility()
   const cls = `text-xs bg-transparent border border-border rounded-lg px-2 py-1
                text-text-muted cursor-pointer hover:border-coffee transition-colors
                focus:outline-none focus:ring-2 focus:ring-coffee/30`
   return (
     <div className="flex items-center justify-center gap-2 flex-wrap">
-      <select value={language} onChange={e => changeLanguage(e.target.value)} aria-label={t('nav.language')} className={cls}>
+      <select
+        value={language}
+        onChange={e => changeLanguage(e.target.value)}
+        aria-label={t('nav.language')}
+        className={cls}
+      >
         {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
       </select>
-      <select value={currency} onChange={e => changeCurrency(e.target.value)} aria-label={t('nav.currency')} className={cls}>
-        {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-      </select>
-      <button onClick={toggleHighContrast} aria-pressed={highContrast} aria-label={t('accessibility.label')}
+      <button
+        onClick={toggleHighContrast}
+        aria-pressed={highContrast}
+        aria-label={t('accessibility.label')}
         className={`text-xs px-2.5 py-1 rounded-lg border transition-all duration-200
           focus:outline-none focus:ring-2 focus:ring-coffee/30
-          ${highContrast ? 'bg-dark-olive text-white border-dark-olive' : 'border-border text-text-muted hover:border-coffee'}`}>
+          ${highContrast
+            ? 'bg-dark-olive text-white border-dark-olive'
+            : 'border-border text-text-muted hover:border-coffee'}`}
+      >
         {t('accessibility.toggle')}
       </button>
     </div>
   )
 }
 
+/* ── Ícono Google ── */
 function GoogleIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -49,25 +59,29 @@ function GoogleIcon() {
 }
 
 export default function LoginPage() {
-  const { t }    = useTranslation()
+  const { t }     = useTranslation()
   const { login } = useApp()
   const navigate  = useNavigate()
 
-  const [mode, setMode]           = useState('login')
-  const [form, setForm]           = useState({ email: '', password: '', confirm: '' })
-  const [errors, setErrors]       = useState({})
-  const [showPw, setShowPw]       = useState(false)
+  const [mode, setMode]             = useState('login') // 'login' | 'recovery'
+  const [form, setForm]             = useState({ email: '', password: '' })
+  const [errors, setErrors]         = useState({})
+  const [showPw, setShowPw]         = useState(false)
   const [recoverySent, setRecoverySent] = useState(false)
 
   const set = field => e => setForm(p => ({ ...p, [field]: e.target.value }))
 
   const validate = () => {
     const errs = {}
-    if (!form.email) errs.email = t('errors.requiredField')
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = t('errors.invalidEmail')
+    if (!form.email)
+      errs.email = t('errors.requiredField')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      errs.email = t('errors.invalidEmail')
     if (mode !== 'recovery') {
-      if (!form.password) errs.password = t('errors.requiredField')
-      else if (form.password.length < 8) errs.password = t('errors.passwordShort')
+      if (!form.password)
+        errs.password = t('errors.requiredField')
+      else if (form.password.length < 8)
+        errs.password = t('errors.passwordShort')
     }
     return errs
   }
@@ -78,28 +92,54 @@ export default function LoginPage() {
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
     if (mode === 'recovery') { setRecoverySent(true); return }
+    localStorage.setItem('authenticated', 'true')
     login({ email: form.email })
-    navigate('/onboarding')
+    navigate('/dashboard')
   }
 
-  const handleGoogle = () => { login({ email: 'google@coffeely.mx', name: 'Google User' }); navigate('/onboarding') }
+  /* Google Sign-In real — obtiene perfil del usuario tras el OAuth flow */
+  const handleGoogle = useGoogleLogin({
+    onSuccess: tokenResponse => {
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+      })
+        .then(r => r.json())
+        .then(profile => {
+          localStorage.setItem('authenticated', 'true')
+          login({ email: profile.email, name: profile.name })
+          navigate('/dashboard')
+        })
+        .catch(() => {
+          localStorage.setItem('authenticated', 'true')
+          login({ email: 'google@coffeely.mx', name: 'Google User' })
+          navigate('/dashboard')
+        })
+    },
+    onError: () => console.error('Google login fallido'),
+  })
 
   return (
     <div className="min-h-screen bg-bg-light flex flex-col">
       <div className="py-4 px-6"><AuthControls /></div>
+
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="w-full max-w-md">
+
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-cream font-bold text-xl shadow-elevated mb-3"
-              style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }}>CF</div>
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center
+                         text-cream font-bold text-xl shadow-elevated mb-3"
+              style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }}
+              aria-hidden="true"
+            >CF</div>
             <h1 className="text-2xl font-bold text-dark-olive tracking-tight">Coffeely</h1>
             <p className="text-sm text-text-muted mt-1">{t('auth.welcomeSub')}</p>
           </div>
 
           <div className="bg-card-bg rounded-2xl border border-border shadow-soft p-8">
             <h2 className="text-lg font-bold text-dark-olive mb-6">
-              {mode === 'recovery' ? t('auth.recovery') : mode === 'register' ? t('auth.register') : t('auth.welcomeBack')}
+              {mode === 'recovery' ? t('auth.recovery') : t('auth.welcomeBack')}
             </h2>
 
             {recoverySent ? (
@@ -108,54 +148,89 @@ export default function LoginPage() {
                   <Mail size={24} className="text-coffee" />
                 </div>
                 <p className="text-sm font-semibold text-text-main">{t('auth.recoverySent')}</p>
-                <button onClick={() => { setRecoverySent(false); setMode('login') }}
-                  className="mt-4 text-sm text-coffee hover:text-dark-olive font-medium focus:outline-none focus:underline transition-colors">
+                <button
+                  onClick={() => { setRecoverySent(false); setMode('login') }}
+                  className="mt-4 text-sm text-coffee hover:text-dark-olive font-medium
+                             focus:outline-none focus:underline transition-colors"
+                >
                   {t('auth.recoveryBack')}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-                <FormField id="auth-email" label={t('auth.email')} type="email"
-                  placeholder={t('auth.emailPlaceholder')} value={form.email} onChange={set('email')}
-                  error={errors.email} autoComplete="email" required
-                  icon={<Mail size={16} />} />
 
+                {/* Email */}
+                <FormField
+                  id="auth-email"
+                  label={t('auth.email')}
+                  type="email"
+                  placeholder={t('auth.emailPlaceholder')}
+                  value={form.email}
+                  onChange={set('email')}
+                  error={errors.email}
+                  autoComplete="email"
+                  required
+                  icon={<Mail size={16} />}
+                />
+
+                {/* Contraseña */}
                 {mode !== 'recovery' && (
                   <div className="flex flex-col gap-1">
                     <label htmlFor="auth-pw" className="text-sm font-medium text-text-main">
-                      {t('auth.password')}<span className="text-red-500 ml-0.5">*</span>
+                      {t('auth.password')}<span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"><Lock size={16} /></span>
-                      <input id="auth-pw" type={showPw ? 'text' : 'password'} value={form.password} onChange={set('password')}
-                        placeholder={t('auth.passwordPlaceholder')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" aria-hidden="true">
+                        <Lock size={16} />
+                      </span>
+                      <input
+                        id="auth-pw"
+                        type={showPw ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={set('password')}
+                        placeholder={t('auth.passwordPlaceholder')}
+                        autoComplete="current-password"
                         aria-invalid={!!errors.password}
                         className={`w-full rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm text-text-main
                           placeholder:text-text-muted transition-colors
                           focus:outline-none focus:ring-2 focus:ring-coffee/40 focus:border-coffee
-                          ${errors.password ? 'border-red-400' : 'border-border hover:border-beige'}`} />
-                      <button type="button" onClick={() => setShowPw(p => !p)} aria-label={showPw ? 'Ocultar' : 'Mostrar'}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main transition-colors focus:outline-none">
+                          ${errors.password ? 'border-red-400' : 'border-border hover:border-beige'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(p => !p)}
+                        aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main transition-colors focus:outline-none"
+                      >
                         {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    {errors.password && <p role="alert" className="text-xs text-red-600">⚠ {errors.password}</p>}
+                    {errors.password && (
+                      <p role="alert" className="text-xs text-red-600">⚠ {errors.password}</p>
+                    )}
                   </div>
                 )}
 
+                {/* Olvidé contraseña */}
                 {mode === 'login' && (
                   <div className="flex justify-end -mt-1">
-                    <button type="button" onClick={() => { setMode('recovery'); setErrors({}) }}
-                      className="text-xs text-coffee hover:text-dark-olive font-medium focus:outline-none focus:underline transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('recovery'); setErrors({}) }}
+                      className="text-xs text-coffee hover:text-dark-olive font-medium
+                                 focus:outline-none focus:underline transition-colors"
+                    >
                       {t('auth.forgotPassword')}
                     </button>
                   </div>
                 )}
 
+                {/* Submit */}
                 <button type="submit" className="btn-primary w-full justify-center mt-1">
-                  {mode === 'recovery' ? t('auth.recoverySend') : mode === 'register' ? t('auth.register') : t('auth.loginBtn')}
+                  {mode === 'recovery' ? t('auth.recoverySend') : t('auth.loginBtn')}
                 </button>
 
+                {/* Google */}
                 {mode !== 'recovery' && (
                   <>
                     <div className="flex items-center gap-3 my-1">
@@ -163,28 +238,44 @@ export default function LoginPage() {
                       <span className="text-xs text-text-muted">{t('auth.orContinueWith')}</span>
                       <span className="flex-1 h-px bg-border" aria-hidden="true" />
                     </div>
-                    <button type="button" onClick={handleGoogle}
+                    <button
+                      type="button"
+                      onClick={() => handleGoogle()}
                       className="w-full flex items-center justify-center gap-3 border border-border
                         hover:border-beige bg-card-bg rounded-xl py-2.5 text-sm font-medium
                         text-text-main hover:shadow-soft transition-all duration-200
-                        focus:outline-none focus:ring-2 focus:ring-coffee/30">
+                        focus:outline-none focus:ring-2 focus:ring-coffee/30"
+                    >
                       <GoogleIcon />{t('auth.loginGoogle')}
                     </button>
                   </>
                 )}
 
+                {/* Link cruzado → registro */}
                 <p className="text-center text-xs text-text-muted mt-2">
                   {mode === 'login' ? (
-                    <>{t('auth.noAccount')}{' '}<button type="button" onClick={() => { setMode('register'); setErrors({}) }}
-                      className="text-coffee hover:text-dark-olive font-semibold focus:outline-none focus:underline">{t('auth.register')}</button></>
-                  ) : mode === 'register' ? (
-                    <>{t('auth.haveAccount')}{' '}<button type="button" onClick={() => { setMode('login'); setErrors({}) }}
-                      className="text-coffee hover:text-dark-olive font-semibold focus:outline-none focus:underline">{t('auth.signIn')}</button></>
+                    <>
+                      {t('auth.noAccount')}{' '}
+                      <Link
+                        to="/registro"
+                        className="text-coffee hover:text-dark-olive font-semibold
+                                   focus:outline-none focus:underline transition-colors"
+                      >
+                        {t('auth.register')}
+                      </Link>
+                    </>
                   ) : (
-                    <button type="button" onClick={() => { setMode('login'); setErrors({}) }}
-                      className="text-coffee hover:text-dark-olive font-semibold focus:outline-none focus:underline">{t('auth.recoveryBack')}</button>
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setErrors({}) }}
+                      className="text-coffee hover:text-dark-olive font-semibold
+                                 focus:outline-none focus:underline transition-colors"
+                    >
+                      {t('auth.recoveryBack')}
+                    </button>
                   )}
                 </p>
+
               </form>
             )}
           </div>
