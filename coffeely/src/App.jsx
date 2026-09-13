@@ -6,15 +6,17 @@
  *   /login             → LoginPage
  *   /registro          → RegisterPage
  *
- * Rutas protegidas (requieren sesión):
- *   /registro-negocio  → BusinessRegistrationPage  (requiere auth, NO negocio)
- *   /captura-diaria    → DailyEntryPage             (requiere auth + negocio)
- *   /captura-historial → HistoricalDataPage         (requiere auth + negocio)
- *   /dashboard         → DashboardPage              (requiere auth + negocio + ≥1 registro)
+ * Rutas protegidas (requieren sesión Supabase real):
+ *   /registro-negocio  → BusinessRegistrationPage  (auth, sin negocio aún)
+ *   /captura-diaria    → DailyEntryPage             (auth + negocio)
+ *   /captura-historial → HistoricalDataPage         (auth + negocio)
+ *   /dashboard         → DashboardPage              (auth + negocio + ≥1 registro)
  *
  * Guards:
- *   RequireAuth        — redirige a /login si no hay sesión
- *   RequireBusiness    — redirige a /registro-negocio si negocio no completado
+ *   RequireAuth             — sesión Supabase real; muestra spinner mientras carga
+ *   RequireBusiness         — auth + registroNegocioCompletado
+ *   RequireData             — auth + negocio + ≥1 registro
+ *   RedirectIfBusinessDone  — evita volver a /registro-negocio si ya completó
  *
  * Providers (exterior → interior):
  *   BrowserRouter → AccessibilityProvider → LanguageProvider
@@ -26,6 +28,7 @@ import { AccessibilityProvider } from './contexts/AccessibilityContext'
 import { LanguageProvider }      from './contexts/LanguageContext'
 import { CurrencyProvider }      from './contexts/CurrencyContext'
 import { AppProvider, useApp }   from './context/CoffeeShopContext'
+import { useAuth }               from './hooks/useAuth'
 import ErrorBoundary             from './components/ErrorBoundary'
 
 import LandingPage              from './pages/LandingPage'
@@ -36,55 +39,69 @@ import DailyEntryPage           from './pages/DailyEntryPage'
 import HistoricalDataPage       from './pages/HistoricalDataPage'
 import DashboardPage            from './pages/DashboardPage'
 
+/* ── Spinner de pantalla completa mientras Supabase resuelve la sesión ── */
+function AuthLoading() {
+  return (
+    <div className="min-h-screen bg-bg-light flex items-center justify-center">
+      <span className="w-8 h-8 border-4 border-coffee border-t-transparent
+                       rounded-full animate-spin" aria-label="Cargando sesión" />
+    </div>
+  )
+}
+
 /* ─────────────────────────────────────────────────
-   Guard 1: usuario autenticado
-   Si no hay sesión → /login
+   Guard 1: usuario autenticado (sesión Supabase real)
+   - Mientras carga → spinner (evita parpadeo de redirect)
+   - Sin sesión     → /login
 ───────────────────────────────────────────────── */
 function RequireAuth({ children }) {
-  const { user } = useApp()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  if (loading) return <AuthLoading />
+  if (!user)   return <Navigate to="/login" replace />
   return children
 }
 
 /* ─────────────────────────────────────────────────
    Guard 2: negocio registrado
-   Si autenticado pero registroNegocioCompletado === false → /registro-negocio
-   Aplica también a usuarios que llegaron via Google OAuth.
+   Requiere auth + registroNegocioCompletado === true
 ───────────────────────────────────────────────── */
 function RequireBusiness({ children }) {
-  const { user, business } = useApp()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  const { business }      = useApp()
+  if (loading) return <AuthLoading />
+  if (!user)   return <Navigate to="/login" replace />
   if (!business.registroNegocioCompletado) return <Navigate to="/registro-negocio" replace />
   return children
 }
 
 /* ─────────────────────────────────────────────────
-   Guard 3: negocio registrado + al menos 1 registro
-   Si no hay datos → redirige al formulario correspondiente
+   Guard 3: negocio + al menos 1 registro de datos
 ───────────────────────────────────────────────── */
 function RequireData({ children }) {
-  const { user, business } = useApp()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  const { business }      = useApp()
+  if (loading) return <AuthLoading />
+  if (!user)   return <Navigate to="/login" replace />
   if (!business.registroNegocioCompletado) return <Navigate to="/registro-negocio" replace />
 
   const hasDailyData   = business.registrosDiarios?.length > 0
   const hasMonthlyData = business.registrosMensuales?.length > 0
-
   if (!hasDailyData && !hasMonthlyData) {
     const dest = business.tieneHistorialFinanciero ? '/captura-historial' : '/captura-diaria'
     return <Navigate to={dest} replace />
   }
-
   return children
 }
 
 /* ─────────────────────────────────────────────────
-   Guard: si ya tiene negocio registrado, no debe
-   volver a /registro-negocio
+   Guard 4: evita volver a /registro-negocio si ya
+   completó el registro del negocio
 ───────────────────────────────────────────────── */
 function RedirectIfBusinessDone({ children }) {
-  const { user, business } = useApp()
-  if (!user) return <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  const { business }      = useApp()
+  if (loading) return <AuthLoading />
+  if (!user)   return <Navigate to="/login" replace />
   if (business.registroNegocioCompletado) {
     const hasDailyData   = business.registrosDiarios?.length > 0
     const hasMonthlyData = business.registrosMensuales?.length > 0
@@ -95,61 +112,41 @@ function RedirectIfBusinessDone({ children }) {
   return children
 }
 
+/* ─────────────────────────────────────────────────
+   Rutas
+───────────────────────────────────────────────── */
 function AppRoutes() {
   return (
     <Routes>
       {/* Públicas */}
-      <Route path="/"        element={<LandingPage />} />
-      <Route path="/login"   element={<LoginPage />} />
+      <Route path="/"         element={<LandingPage />} />
+      <Route path="/login"    element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
 
-      {/* Registro de negocio: requiere auth pero NO negocio completado */}
-      <Route
-        path="/registro-negocio"
-        element={
-          <RedirectIfBusinessDone>
-            <BusinessRegistrationPage />
-          </RedirectIfBusinessDone>
-        }
-      />
+      {/* Registro de negocio: auth pero sin negocio completado */}
+      <Route path="/registro-negocio" element={
+        <RedirectIfBusinessDone>
+          <BusinessRegistrationPage />
+        </RedirectIfBusinessDone>
+      } />
 
-      {/* Captura de datos: requiere auth + negocio completado */}
-      <Route
-        path="/captura-diaria"
-        element={
-          <RequireBusiness>
-            <DailyEntryPage />
-          </RequireBusiness>
-        }
-      />
-      <Route
-        path="/captura-historial"
-        element={
-          <RequireBusiness>
-            <HistoricalDataPage />
-          </RequireBusiness>
-        }
-      />
+      {/* Captura de datos: auth + negocio */}
+      <Route path="/captura-diaria" element={
+        <RequireBusiness><DailyEntryPage /></RequireBusiness>
+      } />
+      <Route path="/captura-historial" element={
+        <RequireBusiness><HistoricalDataPage /></RequireBusiness>
+      } />
 
-      {/* Dashboard: requiere auth + negocio + ≥1 registro */}
-      <Route
-        path="/dashboard"
-        element={
-          <RequireData>
-            <DashboardPage />
-          </RequireData>
-        }
-      />
+      {/* Dashboard: auth + negocio + ≥1 registro */}
+      <Route path="/dashboard" element={
+        <RequireData><DashboardPage /></RequireData>
+      } />
 
-      {/* Legacy /onboarding → redirect al nuevo flujo */}
-      <Route
-        path="/onboarding"
-        element={
-          <RequireAuth>
-            <Navigate to="/registro-negocio" replace />
-          </RequireAuth>
-        }
-      />
+      {/* Legacy /onboarding → nuevo flujo */}
+      <Route path="/onboarding" element={
+        <RequireAuth><Navigate to="/registro-negocio" replace /></RequireAuth>
+      } />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

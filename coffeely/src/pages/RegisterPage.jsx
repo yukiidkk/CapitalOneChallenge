@@ -1,18 +1,19 @@
 /**
- * RegisterPage.jsx — Registro de cuenta nueva.
- * Valida: campos no vacíos, email válido, contraseña ≥8 chars,
- * mínimo 1 mayúscula, mínimo 1 carácter especial, confirmación coincide.
- * Al enviar: guarda flag en localStorage y redirige a /onboarding.
+ * RegisterPage.jsx — Registro de cuenta nueva con Supabase Auth.
+ *   - Email+password → supabase.auth.signUp()
+ *   - Google         → supabase.auth.signInWithOAuth({ provider: 'google' })
+ *
+ * La tabla "perfiles" se llena automáticamente mediante el trigger
+ * handle_new_user() en Supabase — NO se inserta manualmente aquí.
  */
-import { useState }            from 'react'
-import { Link, useNavigate }   from 'react-router-dom'
-import { useGoogleLogin }      from '@react-oauth/google'
-import { useApp }              from '../context/CoffeeShopContext'
-import { useAccessibility }    from '../contexts/AccessibilityContext'
-import FormField               from '../components/ui/FormField'
+import { useState }          from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase }          from '../services/supabase/client'
+import { useAccessibility }  from '../contexts/AccessibilityContext'
+import FormField             from '../components/ui/FormField'
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 
-/* ── Ícono Google (inline, sin dependencia extra) ── */
+/* ── Ícono Google (inline SVG) ── */
 function GoogleIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -24,21 +25,18 @@ function GoogleIcon() {
   )
 }
 
-/* ── Selector de contraste accesible ── */
+/* ── Barra de accesibilidad ── */
 function A11yBar() {
   const { highContrast, toggleHighContrast } = useAccessibility()
   return (
     <div className="flex items-center justify-center gap-2">
-      <button
-        onClick={toggleHighContrast}
-        aria-pressed={highContrast}
+      <button onClick={toggleHighContrast} aria-pressed={highContrast}
         aria-label="Modo de alto contraste"
         className={`text-xs px-2.5 py-1 rounded-lg border transition-all duration-200
           focus:outline-none focus:ring-2 focus:ring-coffee/30
           ${highContrast
             ? 'bg-dark-olive text-white border-dark-olive'
-            : 'border-border text-text-muted hover:border-coffee'}`}
-      >
+            : 'border-border text-text-muted hover:border-coffee'}`}>
         Alto contraste
       </button>
     </div>
@@ -69,105 +67,147 @@ function validate(form) {
   return errs
 }
 
-/* ── Componente principal ── */
+/* ═══════════════════════════════════════════════ */
 export default function RegisterPage() {
-  const { login }  = useApp()
-  const navigate   = useNavigate()
+  const navigate = useNavigate()
 
-  const [form, setForm]     = useState({ fullName: '', email: '', password: '', confirm: '' })
-  const [errors, setErrors] = useState({})
-  const [showPw, setShowPw] = useState(false)
-  const [showCf, setShowCf] = useState(false)
+  const [form, setForm]               = useState({ fullName: '', email: '', password: '', confirm: '' })
+  const [errors, setErrors]           = useState({})
+  const [serverError, setServerError] = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [showPw, setShowPw]           = useState(false)
+  const [showCf, setShowCf]           = useState(false)
+  // Supabase puede requerir confirmación de email — mostramos un aviso
+  const [signedUp, setSignedUp]       = useState(false)
 
   const set = field => e => setForm(p => ({ ...p, [field]: e.target.value }))
 
-  const handleSubmit = e => {
+  /* ── Email + password signup ── */
+  const handleSubmit = async e => {
     e.preventDefault()
     const errs = validate(form)
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
-    // Simulación hackathon: guardar flag y hacer login
-    localStorage.setItem('authenticated', 'true')
-    login({ email: form.email, name: form.fullName })
-    navigate('/onboarding')
+    setServerError('')
+    setLoading(true)
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email:    form.email,
+        password: form.password,
+        options: {
+          data: {
+            // Se pasa al trigger handle_new_user() como raw_user_meta_data
+            user_name: form.fullName,
+          },
+          emailRedirectTo: `${window.location.origin}/registro-negocio`,
+        },
+      })
+
+      if (error) throw error
+
+      // Si identities vacío → email ya registrado (Supabase devuelve 200 por seguridad)
+      if (data.user && data.user.identities?.length === 0) {
+        setServerError('Este correo ya tiene una cuenta. Inicia sesión.')
+        return
+      }
+
+      // Si hay sesión activa ya (email confirm desactivado en Supabase) → redirigir
+      if (data.session) {
+        navigate('/registro-negocio')
+      } else {
+        // Supabase envió email de confirmación
+        setSignedUp(true)
+      }
+    } catch (err) {
+      setServerError(err.message ?? 'Algo salió mal. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleGoogle = useGoogleLogin({
-    onSuccess: tokenResponse => {
-      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-      })
-        .then(r => r.json())
-        .then(profile => {
-          localStorage.setItem('authenticated', 'true')
-          login({ email: profile.email, name: profile.name })
-          navigate('/onboarding')
-        })
-        .catch(() => {
-          localStorage.setItem('authenticated', 'true')
-          login({ email: 'google@coffeely.mx', name: 'Google User' })
-          navigate('/onboarding')
-        })
-    },
-    onError: () => console.error('Google register fallido'),
-  })
+  /* ── Google OAuth ── */
+  const handleGoogle = async () => {
+    setServerError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/registro-negocio`,
+      },
+    })
+    if (error) setServerError(error.message)
+  }
+
+  /* ── Pantalla de confirmación de email ── */
+  if (signedUp) {
+    return (
+      <div className="min-h-screen bg-bg-light flex items-center justify-center px-4">
+        <div className="bg-card-bg rounded-2xl border border-border shadow-soft p-10
+                        max-w-md w-full text-center flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-cream flex items-center justify-center">
+            <Mail size={26} className="text-coffee" />
+          </div>
+          <h2 className="text-xl font-bold text-dark-olive">Revisa tu correo</h2>
+          <p className="text-sm text-text-muted leading-relaxed">
+            Te enviamos un enlace de confirmación a <strong>{form.email}</strong>.
+            Haz clic en él para activar tu cuenta y acceder a Coffeely.
+          </p>
+          <Link to="/login"
+            className="text-sm text-coffee hover:text-dark-olive font-semibold
+                       focus:outline-none focus:underline transition-colors">
+            Volver al inicio de sesión
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-bg-light flex flex-col">
 
       {/* Barra accesibilidad */}
-      <div className="py-4 px-6">
-        <A11yBar />
-      </div>
+      <div className="py-4 px-6"><A11yBar /></div>
 
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="w-full max-w-md">
 
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center
-                         text-cream font-bold text-xl shadow-elevated mb-3"
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center
+                            text-cream font-bold text-xl shadow-elevated mb-3"
               style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }}
-              aria-hidden="true"
-            >CF</div>
+              aria-hidden="true">CF</div>
             <h1 className="text-2xl font-bold text-dark-olive tracking-tight">Coffeely</h1>
             <p className="text-sm text-text-muted mt-1">Crea tu cuenta y empieza hoy</p>
           </div>
 
-          {/* Tarjeta */}
           <div className="bg-card-bg rounded-2xl border border-border shadow-soft p-8">
             <h2 className="text-lg font-bold text-dark-olive mb-6">Crear cuenta</h2>
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
 
+              {/* Error del servidor */}
+              {serverError && (
+                <div role="alert"
+                  className="text-xs text-red-600 bg-red-50 border border-red-200
+                             rounded-lg px-3 py-2 flex items-center gap-1.5">
+                  <span aria-hidden="true">⚠</span>{serverError}
+                </div>
+              )}
+
               {/* Nombre completo */}
-              <FormField
-                id="reg-name"
-                label="Nombre completo"
-                type="text"
+              <FormField id="reg-name" label="Nombre completo" type="text"
                 placeholder="Ej. María García"
-                value={form.fullName}
-                onChange={set('fullName')}
-                error={errors.fullName}
-                autoComplete="name"
-                required
-                icon={<User size={16} />}
-              />
+                value={form.fullName} onChange={set('fullName')}
+                error={errors.fullName} autoComplete="name" required
+                icon={<User size={16} />} />
 
               {/* Email */}
-              <FormField
-                id="reg-email"
-                label="Correo electrónico"
-                type="email"
+              <FormField id="reg-email" label="Correo electrónico" type="email"
                 placeholder="tu@cafeteria.com"
-                value={form.email}
-                onChange={set('email')}
-                error={errors.email}
-                autoComplete="email"
-                required
-                icon={<Mail size={16} />}
-              />
+                value={form.email} onChange={set('email')}
+                error={errors.email} autoComplete="email" required
+                icon={<Mail size={16} />} />
 
               {/* Contraseña */}
               <div className="flex flex-col gap-1">
@@ -178,26 +218,19 @@ export default function RegisterPage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" aria-hidden="true">
                     <Lock size={16} />
                   </span>
-                  <input
-                    id="reg-pw"
-                    type={showPw ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={set('password')}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
+                  <input id="reg-pw" type={showPw ? 'text' : 'password'}
+                    value={form.password} onChange={set('password')}
+                    placeholder="••••••••" autoComplete="new-password"
                     aria-invalid={!!errors.password}
                     aria-describedby={errors.password ? 'reg-pw-error' : 'reg-pw-hint'}
-                    className={`w-full rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm text-text-main
-                      placeholder:text-text-muted transition-colors
+                    className={`w-full rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm
+                      text-text-main placeholder:text-text-muted transition-colors
                       focus:outline-none focus:ring-2 focus:ring-coffee/40 focus:border-coffee
-                      ${errors.password ? 'border-red-400' : 'border-border hover:border-beige'}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(p => !p)}
+                      ${errors.password ? 'border-red-400' : 'border-border hover:border-beige'}`} />
+                  <button type="button" onClick={() => setShowPw(p => !p)}
                     aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main transition-colors focus:outline-none"
-                  >
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted
+                               hover:text-text-main transition-colors focus:outline-none">
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -222,26 +255,19 @@ export default function RegisterPage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" aria-hidden="true">
                     <Lock size={16} />
                   </span>
-                  <input
-                    id="reg-cf"
-                    type={showCf ? 'text' : 'password'}
-                    value={form.confirm}
-                    onChange={set('confirm')}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
+                  <input id="reg-cf" type={showCf ? 'text' : 'password'}
+                    value={form.confirm} onChange={set('confirm')}
+                    placeholder="••••••••" autoComplete="new-password"
                     aria-invalid={!!errors.confirm}
                     aria-describedby={errors.confirm ? 'reg-cf-error' : undefined}
-                    className={`w-full rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm text-text-main
-                      placeholder:text-text-muted transition-colors
+                    className={`w-full rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm
+                      text-text-main placeholder:text-text-muted transition-colors
                       focus:outline-none focus:ring-2 focus:ring-coffee/40 focus:border-coffee
-                      ${errors.confirm ? 'border-red-400' : 'border-border hover:border-beige'}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCf(p => !p)}
+                      ${errors.confirm ? 'border-red-400' : 'border-border hover:border-beige'}`} />
+                  <button type="button" onClick={() => setShowCf(p => !p)}
                     aria-label={showCf ? 'Ocultar confirmación' : 'Mostrar confirmación'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main transition-colors focus:outline-none"
-                  >
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted
+                               hover:text-text-main transition-colors focus:outline-none">
                     {showCf ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -253,8 +279,14 @@ export default function RegisterPage() {
               </div>
 
               {/* Submit */}
-              <button type="submit" className="btn-primary w-full justify-center mt-1">
-                Crear cuenta
+              <button type="submit" disabled={loading}
+                className="btn-primary w-full justify-center mt-1 disabled:opacity-60 disabled:cursor-not-allowed">
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creando cuenta…
+                  </span>
+                ) : 'Crear cuenta'}
               </button>
 
               {/* Divider */}
@@ -265,14 +297,11 @@ export default function RegisterPage() {
               </div>
 
               {/* Google */}
-              <button
-                type="button"
-                onClick={() => handleGoogle()}
+              <button type="button" onClick={handleGoogle}
                 className="w-full flex items-center justify-center gap-3 border border-border
                   hover:border-beige bg-card-bg rounded-xl py-2.5 text-sm font-medium
                   text-text-main hover:shadow-soft transition-all duration-200
-                  focus:outline-none focus:ring-2 focus:ring-coffee/30"
-              >
+                  focus:outline-none focus:ring-2 focus:ring-coffee/30">
                 <GoogleIcon />
                 Registrarse con Google
               </button>
@@ -280,10 +309,9 @@ export default function RegisterPage() {
               {/* Link cruzado */}
               <p className="text-center text-xs text-text-muted mt-2">
                 ¿Ya tienes cuenta?{' '}
-                <Link
-                  to="/login"
-                  className="text-coffee hover:text-dark-olive font-semibold focus:outline-none focus:underline transition-colors"
-                >
+                <Link to="/login"
+                  className="text-coffee hover:text-dark-olive font-semibold
+                             focus:outline-none focus:underline transition-colors">
                   Inicia sesión
                 </Link>
               </p>
