@@ -110,7 +110,7 @@ function greeting(name) {
 export default function DashboardPage() {
   const { t, i18n }        = useTranslation()
   const { user, business } = useApp()
-  const { metrics, chartData, riskLevel } = useDashboardData()
+  const { metrics } = useDashboardData()
   const pendingData = usePendingEntries()
 
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -194,20 +194,10 @@ export default function DashboardPage() {
             className="lg:col-span-2 bg-card-bg rounded-2xl border border-border shadow-soft p-8"
             aria-label={t('dashboard.chart.title')}
           >
-            {chartData.length > 0
-              ? <CashFlowChart data={chartData} />
-              : (
-                <div className="flex flex-col items-center justify-center h-48 gap-3">
-                  <ClipboardList size={32} className="text-border" aria-hidden="true" />
-                  <p className="text-sm text-text-muted text-center max-w-xs">
-                    Aquí verás la gráfica de ingresos vs. gastos conforme vayas registrando tus datos diarios.
-                  </p>
-                </div>
-              )
-            }
+            <CashFlowChart />
           </section>
           <section aria-label={t('dashboard.risk.title')}>
-            <RiskSemaphore riskLevel={riskLevel} />
+            <RiskSemaphore metrics={metrics} />
           </section>
         </div>
 
