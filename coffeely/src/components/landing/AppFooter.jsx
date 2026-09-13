@@ -14,7 +14,7 @@ export default function AppFooter() {
                       py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
 
         <span className="text-xs text-text-muted">
-          © {new Date().getFullYear()} Coffeely · Software Financiero para Cafeterías
+          © {new Date().getFullYear()} Capital Coffee · Software Financiero para Cafeterías
         </span>
 
         <nav aria-label="Links legales" className="flex items-center gap-5">

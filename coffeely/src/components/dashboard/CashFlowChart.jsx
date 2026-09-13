@@ -12,8 +12,8 @@
  *   ventasPromedioDiarias, costosFijosMensuales, costosVariablesPromedio,
  *   balanceInicial — todos derivados de CoffeeShopContext.
  */
-import { useMemo }         from 'react'
-import { useTranslation }  from 'react-i18next'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -27,14 +27,14 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts'
-import { useApp }          from '../../context/CoffeeShopContext'
-import { useCurrency }     from '../../contexts/CurrencyContext'
+import { useApp } from '../../context/CoffeeShopContext'
+import { useCurrency } from '../../contexts/CurrencyContext'
 import {
   projectCashFlow30Days,
   calcularPromediosDiarios,
   calcularCostosFijosMensuales,
 } from '../../utils/financialCalculations'
-import { ClipboardList }   from 'lucide-react'
+import { ClipboardList } from 'lucide-react'
 
 /* ── Intl.NumberFormat para formato de moneda ── */
 function fmtMXN(value, symbol = '$') {
@@ -79,15 +79,15 @@ function CustomTooltip({ active, payload, label, symbol }) {
       {payload.map(e => {
         const labels = {
           ingresos: 'Ingresos',
-          gastos:   'Gastos',
-          balance:  'Balance',
+          gastos: 'Gastos',
+          balance: 'Balance',
         }
         /* Indicador de forma según serie */
         const shapes = {
           ingresos: <polygon points="0,-4 4,0 0,4 -4,0" fill={e.color}
             style={{ display: 'inline-block', marginRight: 4 }} />,
-          gastos:   <circle cx="0" cy="0" r="4" fill={e.color} />,
-          balance:  <rect x="-4" y="-3" width="8" height="6" fill={e.color} opacity={0.5} />,
+          gastos: <circle cx="0" cy="0" r="4" fill={e.color} />,
+          balance: <rect x="-4" y="-3" width="8" height="6" fill={e.color} opacity={0.5} />,
         }
         return (
           <div key={e.dataKey} className="flex justify-between items-center gap-4 py-0.5">
@@ -147,13 +147,13 @@ function CustomLegend() {
 
 /* ════════════════════════════════════════════════ */
 export default function CashFlowChart() {
-  const { t }      = useTranslation()
+  const { t } = useTranslation()
   const { business } = useApp()
   const { currency: currCode, CURRENCIES, convert } = useCurrency()
   const symbol = CURRENCIES.find(c => c.code === currCode)?.symbol ?? '$'
 
   const mesActual = new Date().toISOString().slice(0, 7)
-  const hoy       = new Date().getDate()
+  const hoy = new Date().getDate()
 
   /* ── Calcular parámetros de proyección ── */
   const { ventasPromedioDiarias, costosVariablesPromedio } = useMemo(
@@ -164,7 +164,7 @@ export default function CashFlowChart() {
   const costosFijosMensuales = useMemo(
     () => calcularCostosFijosMensuales(
       business.registrosMensuales ?? [],
-      business.registrosDiarios   ?? [],
+      business.registrosDiarios ?? [],
       mesActual,
     ),
     [business.registrosMensuales, business.registrosDiarios, mesActual]
@@ -190,19 +190,19 @@ export default function CashFlowChart() {
       costosVariablesPromedio,
       balanceInicial,
       registrosDiarios: business.registrosDiarios ?? [],
-      mesBase:          mesActual,
+      mesBase: mesActual,
     }),
     [ventasPromedioDiarias, costosFijosMensuales, costosVariablesPromedio,
-     balanceInicial, business.registrosDiarios, mesActual]
+      balanceInicial, business.registrosDiarios, mesActual]
   )
 
   /* ── Convertir a moneda activa ── */
   const data = useMemo(
     () => rawData.map(d => ({
-      dia:          d.dia,
-      ingresos:     Math.round(convert(d.ingresos, 'MXN')),
-      gastos:       Math.round(convert(d.gastos,   'MXN')),
-      balance:      Math.round(convert(d.balance,  'MXN')),
+      dia: d.dia,
+      ingresos: Math.round(convert(d.ingresos, 'MXN')),
+      gastos: Math.round(convert(d.gastos, 'MXN')),
+      balance: Math.round(convert(d.balance, 'MXN')),
       esProyeccion: d.esProyeccion,
     })),
     [rawData, convert]
@@ -229,7 +229,7 @@ export default function CashFlowChart() {
   const yPad = Math.abs(yMax - yMin) * 0.15 || 1000
   const yDomain = [
     Math.floor((yMin - yPad) / 1000) * 1000,
-    Math.ceil( (yMax + yPad) / 1000) * 1000,
+    Math.ceil((yMax + yPad) / 1000) * 1000,
   ]
 
   return (
@@ -238,7 +238,7 @@ export default function CashFlowChart() {
         {t('dashboard.chart.title')}
       </h2>
       <p className="text-xs text-text-muted mb-5">
-        Proyección a 30 días — días sin registro usan el promedio de tus datos actuales.
+        Proyección a 30 días — los días anteriores a tu primer registro se muestran en 0.
       </p>
 
       <ResponsiveContainer width="100%" height={300}>

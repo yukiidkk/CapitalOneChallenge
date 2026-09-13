@@ -5,9 +5,9 @@
  * Al guardar: agrega a registrosMensuales y redirige a /dashboard.
  */
 import { useState, useMemo } from 'react'
-import { useNavigate }       from 'react-router-dom'
-import { useApp }            from '../context/CoffeeShopContext'
-import { useCurrency }       from '../contexts/CurrencyContext'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../context/CoffeeShopContext'
+import { useCurrency } from '../contexts/CurrencyContext'
 import { useEntryFrequency } from '../hooks/useEntryFrequency'
 import { upsertEstadoMensual } from '../services/supabase/negociosService'
 import { Calendar, TrendingUp, Receipt, ShoppingCart, Wallet, Plus, Trash2, Calculator } from 'lucide-react'
@@ -27,12 +27,12 @@ function generateMonthOptions() {
 const MONTH_OPTIONS = generateMonthOptions()
 
 const emptyEntry = () => ({
-  mes:                     MONTH_OPTIONS[1]?.val ?? '',
-  ingresosTotales:         '',
-  gastosFijos:             '',
-  gastosVariables:         '',
-  utilidadNetaManual:      '',
-  overrideUtilidad:        false,
+  mes: MONTH_OPTIONS[1]?.val ?? '',
+  ingresosTotales: '',
+  gastosFijos: '',
+  gastosVariables: '',
+  utilidadNetaManual: '',
+  overrideUtilidad: false,
   capitalDisponibleCierre: '',
 })
 
@@ -79,9 +79,9 @@ function NumField({ id, label, value, onChange, error, icon, hint, required = tr
 /* ── Tarjeta de un mes ── */
 function MonthCard({ entry, idx, onChange, onRemove, errors, symbol, isOnly, modoMensual }) {
   const utilidadCalculada = useMemo(() => {
-    const ing  = Number(entry.ingresosTotales)  || 0
-    const fij  = Number(entry.gastosFijos)       || 0
-    const vari = Number(entry.gastosVariables)   || 0
+    const ing = Number(entry.ingresosTotales) || 0
+    const fij = Number(entry.gastosFijos) || 0
+    const vari = Number(entry.gastosVariables) || 0
     return ing - fij - vari
   }, [entry.ingresosTotales, entry.gastosFijos, entry.gastosVariables])
 
@@ -177,20 +177,20 @@ function MonthCard({ entry, idx, onChange, onRemove, errors, symbol, isOnly, mod
 export default function HistoricalDataPage() {
   const navigate = useNavigate()
   const { business, addRegistroMensual } = useApp()
-  const { currency, CURRENCIES }         = useCurrency()
-  const { frecuencia }                   = useEntryFrequency()
+  const { currency, CURRENCIES } = useCurrency()
+  const { frecuencia } = useEntryFrequency()
 
-  const symbol      = CURRENCIES.find(c => c.code === currency)?.symbol ?? '$'
+  const symbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? '$'
   const modoMensual = frecuencia === 'mensual'
 
-  const [entries, setEntries]             = useState([emptyEntry()])
-  const [errors, setErrors]               = useState({})
-  const [serverError, setServerError]     = useState('')
-  const [saving, setSaving]               = useState(false)
+  const [entries, setEntries] = useState([emptyEntry()])
+  const [errors, setErrors] = useState({})
+  const [serverError, setServerError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const updateEntry = (idx, data) => setEntries(prev => prev.map((e, i) => i === idx ? data : e))
-  const removeEntry = (idx)      => setEntries(prev => prev.filter((_, i) => i !== idx))
-  const addEntry    = ()         => setEntries(prev => [...prev, emptyEntry()])
+  const removeEntry = (idx) => setEntries(prev => prev.filter((_, i) => i !== idx))
+  const addEntry = () => setEntries(prev => [...prev, emptyEntry()])
 
   const validate = () => {
     const errs = {}
@@ -231,11 +231,11 @@ export default function HistoricalDataPage() {
           : Number(entry.ingresosTotales) - Number(entry.gastosFijos) - Number(entry.gastosVariables)
 
         const registro = {
-          mes:                     entry.mes,
-          ingresosTotales:         Number(entry.ingresosTotales),
-          gastosFijos:             Number(entry.gastosFijos),
-          gastosVariables:         Number(entry.gastosVariables),
-          utilidadNeta:            utilidad,
+          mes: entry.mes,
+          ingresosTotales: Number(entry.ingresosTotales),
+          gastosFijos: Number(entry.gastosFijos),
+          gastosVariables: Number(entry.gastosVariables),
+          utilidadNeta: utilidad,
           capitalDisponibleCierre: Number(entry.capitalDisponibleCierre),
         }
         return upsertEstadoMensual(negocioId, registro)
@@ -265,7 +265,7 @@ export default function HistoricalDataPage() {
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-cream font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }} aria-hidden="true">CF</div>
             <div>
-              <span className="block text-lg font-bold text-dark-olive">Coffeely</span>
+              <span className="block text-lg font-bold text-dark-olive">Capital Coffee</span>
               <span className="block text-xs text-text-muted">
                 {modoMensual ? 'Registro mensual' : 'Historial financiero'}
               </span>

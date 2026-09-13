@@ -9,7 +9,13 @@
  * projectCashFlow30Days
  * Genera una proyección día a día de 30 días combinando:
  *   a) Registros diarios reales ya guardados (si existen para ese día)
- *   b) Proyección basada en promedios para los días sin datos
+ *   b) Proyección basada en promedios para días POSTERIORES al primer registro
+ *   c) Cero absoluto para días ANTERIORES al primer registro real
+ *
+ * Reglas:
+ *   - Si no hay ningún registro → toda la gráfica muestra 0 (sin simulación).
+ *   - Para días anteriores al primer registro real del mes → 0, sin proyectar.
+ *   - Para días posteriores al último registro real → proyección con promedios.
  *
  * @param {object} params
  * @param {number} params.ventasPromedioDiarias   — ingresos promedio por día
@@ -21,23 +27,31 @@
  *
  * @returns {Array<{
  *   dia: number,          — número de día (1–30)
- *   ingresos: number,     — ingresos del día (real o proyectado)
- *   gastos: number,       — gastos del día (real o proyectado)
+ *   ingresos: number,     — ingresos del día (real, proyectado, o 0)
+ *   gastos: number,       — gastos del día (real, proyectado, o 0)
  *   balance: number,      — balance acumulado al final del día
- *   esProyeccion: boolean — true = proyectado, false = dato real
+ *   esProyeccion: boolean — true = proyectado/vacío, false = dato real
  * }>}
  */
 export function projectCashFlow30Days({
-  ventasPromedioDiarias   = 0,
-  costosFijosMensuales    = 0,
+  ventasPromedioDiarias = 0,
+  costosFijosMensuales = 0,
   costosVariablesPromedio = 0,
-  balanceInicial          = 0,
-  registrosDiarios        = [],
-  mesBase                 = new Date().toISOString().slice(0, 7),
+  balanceInicial = 0,
+  registrosDiarios = [],
+  mesBase = new Date().toISOString().slice(0, 7),
 }) {
   const gastosFijoDiario = costosFijosMensuales / 30
-  const resultado        = []
-  let balanceAcumulado   = balanceInicial
+  const resultado = []
+  let balanceAcumulado = balanceInicial
+
+  // Registros que pertenecen al mes que se está graficando
+  const registrosDelMes = registrosDiarios.filter(r => r.fecha?.startsWith(mesBase))
+
+  // Día del primer registro real dentro del mes (1-indexed), o Infinity si no hay ninguno
+  const primerDiaConRegistro = registrosDelMes.length > 0
+    ? Math.min(...registrosDelMes.map(r => parseInt(r.fecha.slice(8, 10), 10)))
+    : Infinity
 
   for (let dia = 1; dia <= 30; dia++) {
     const fechaDia = `${mesBase}-${String(dia).padStart(2, '0')}`
@@ -46,28 +60,35 @@ export function projectCashFlow30Days({
     let ingresos, gastos, esProyeccion
 
     if (registro) {
-      ingresos      = registro.ingresosTotales   ?? ventasPromedioDiarias
-      gastos        = (registro.gastosFijos ?? gastosFijoDiario)
-                    + (registro.gastosVariables ?? costosVariablesPromedio)
-      esProyeccion  = false
-      // Si hay capital disponible registrado, actualizar balance
+      // ── Dato real ────────────────────────────────────────────────
+      ingresos = registro.ingresosTotales ?? ventasPromedioDiarias
+      gastos = (registro.gastosFijos ?? gastosFijoDiario)
+        + (registro.gastosVariables ?? costosVariablesPromedio)
+      esProyeccion = false
       if (registro.capitalDisponible != null) {
         balanceAcumulado = registro.capitalDisponible
       } else {
         balanceAcumulado += ingresos - gastos
       }
+    } else if (dia < primerDiaConRegistro) {
+      // ── Antes del primer registro real → siempre 0, sin inventar ─
+      ingresos = 0
+      gastos = 0
+      esProyeccion = true
+      // El balance permanece igual (no se acumula nada ficticio)
     } else {
-      ingresos      = ventasPromedioDiarias
-      gastos        = gastosFijoDiario + costosVariablesPromedio
-      esProyeccion  = true
+      // ── Después del último registro real → proyección con promedios
+      ingresos = ventasPromedioDiarias
+      gastos = gastosFijoDiario + costosVariablesPromedio
+      esProyeccion = true
       balanceAcumulado += ingresos - gastos
     }
 
     resultado.push({
       dia,
-      ingresos:      Math.max(0, Math.round(ingresos)),
-      gastos:        Math.max(0, Math.round(gastos)),
-      balance:       Math.round(balanceAcumulado),
+      ingresos: Math.max(0, Math.round(ingresos)),
+      gastos: Math.max(0, Math.round(gastos)),
+      balance: Math.round(balanceAcumulado),
       esProyeccion,
     })
   }
@@ -109,8 +130,8 @@ export function calcularPromediosDiarios(registrosDiarios = []) {
  */
 export function calcularCostosFijosMensuales(
   registrosMensuales = [],
-  registrosDiarios   = [],
-  mesActual          = new Date().toISOString().slice(0, 7),
+  registrosDiarios = [],
+  mesActual = new Date().toISOString().slice(0, 7),
 ) {
   // Prioridad 1: registro mensual del mes actual o el más reciente
   if (registrosMensuales.length > 0) {

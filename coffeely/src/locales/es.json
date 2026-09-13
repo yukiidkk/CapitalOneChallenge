@@ -6,13 +6,20 @@
     "currency": "Moneda",
     "accessibility": "Accesibilidad"
   },
-  "header": { "tagline": "Previsión de Liquidez · Riesgo Operativo" },
+  "header": {
+    "tagline": "Previsión de Liquidez · Riesgo Operativo"
+  },
   "accessibility": {
     "toggle": "Alto contraste",
-    "on": "Activado", "off": "Desactivado",
+    "on": "Activado",
+    "off": "Desactivado",
     "label": "Modo de alto contraste para daltónicos"
   },
-  "currency": { "MXN": "Peso mexicano", "USD": "Dólar", "EUR": "Euro" },
+  "currency": {
+    "MXN": "Peso mexicano",
+    "USD": "Dólar",
+    "EUR": "Euro"
+  },
   "errors": {
     "generic": "Algo salió mal. Intenta de nuevo.",
     "requiredField": "Este campo es obligatorio.",
@@ -23,59 +30,90 @@
   "auth": {
     "welcomeBack": "Bienvenido de vuelta",
     "welcomeSub": "Gestiona tu cafetería con claridad",
-    "email": "Correo electrónico", "emailPlaceholder": "tu@cafeteria.com",
-    "password": "Contraseña", "passwordPlaceholder": "••••••••",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "tu@cafeteria.com",
+    "password": "Contraseña",
+    "passwordPlaceholder": "••••••••",
     "forgotPassword": "¿Olvidaste tu contraseña?",
-    "loginBtn": "Ingresar", "loginGoogle": "Continuar con Google",
-    "noAccount": "¿Sin cuenta?", "register": "Regístrate gratis",
-    "haveAccount": "¿Ya tienes cuenta?", "signIn": "Inicia sesión",
+    "loginBtn": "Ingresar",
+    "loginGoogle": "Continuar con Google",
+    "noAccount": "¿Sin cuenta?",
+    "register": "Regístrate gratis",
+    "haveAccount": "¿Ya tienes cuenta?",
+    "signIn": "Inicia sesión",
     "orContinueWith": "o continúa con",
-    "recovery": "Recuperar contraseña", "recoverySub": "Te enviaremos un enlace.",
-    "recoverySend": "Enviar enlace", "recoveryBack": "Volver al login",
+    "recovery": "Recuperar contraseña",
+    "recoverySub": "Te enviaremos un enlace.",
+    "recoverySend": "Enviar enlace",
+    "recoveryBack": "Volver al login",
     "recoverySent": "¡Listo! Revisa tu bandeja."
   },
   "onboarding": {
     "title": "Cuéntanos sobre tu cafetería",
     "subtitle": "Solo tarda 2 minutos.",
     "step": "Paso {{current}} de {{total}}",
-    "businessName": "Nombre del negocio", "businessNamePh": "Ej. Café El Rincón",
-    "openTime": "Hora de apertura", "closeTime": "Hora de cierre",
+    "businessName": "Nombre del negocio",
+    "businessNamePh": "Ej. Café El Rincón",
+    "openTime": "Hora de apertura",
+    "closeTime": "Hora de cierre",
     "mainCurrency": "Moneda principal",
     "hasHistory": "¿Tienes historial financiero?",
     "hasHistoryHint": "Puedes importar registros de meses anteriores.",
-    "yes": "Sí", "no": "No, soy nuevo",
-    "next": "Siguiente", "back": "Atrás", "finish": "¡Empezar!",
+    "yes": "Sí",
+    "no": "No, soy nuevo",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "finish": "¡Empezar!",
     "history": {
-      "title": "Carga tu historial", "subtitle": "Datos mensuales para proyecciones precisas.",
-      "addMonth": "Agregar mes", "month": "Mes", "year": "Año",
-      "revenue": "Ingresos", "expenses": "Gastos", "profit": "Utilidad neta",
+      "title": "Carga tu historial",
+      "subtitle": "Datos mensuales para proyecciones precisas.",
+      "addMonth": "Agregar mes",
+      "month": "Mes",
+      "year": "Año",
+      "revenue": "Ingresos",
+      "expenses": "Gastos",
+      "profit": "Utilidad neta",
       "removeMonth": "Quitar mes"
     },
     "daily": {
-      "title": "Registro del día", "subtitle": "Empieza desde cero.",
-      "dailyRevenue": "Ingresos del día", "dailyRevenuePh": "Ej. 2,500",
-      "availableCapital": "Capital disponible", "availableCapitalPh": "Ej. 15,000",
-      "fixedExpenses": "Gastos fijos mensuales", "fixedExpensesPh": "Ej. 8,000",
-      "savingsGoal": "Meta de ahorro", "savingsGoalPh": "Ej. 5,000"
+      "title": "Registro del día",
+      "subtitle": "Empieza desde cero.",
+      "dailyRevenue": "Ingresos del día",
+      "dailyRevenuePh": "Ej. 2,500",
+      "availableCapital": "Capital disponible",
+      "availableCapitalPh": "Ej. 15,000",
+      "fixedExpenses": "Gastos fijos mensuales",
+      "fixedExpensesPh": "Ej. 8,000",
+      "savingsGoal": "Meta de ahorro",
+      "savingsGoalPh": "Ej. 5,000"
     }
   },
   "dashboard": {
-    "title": "Resumen del mes", "subtitle": "Actualizado al día de hoy",
-    "expectedRevenue": "Ingresos esperados", "expectedExpenses": "Gastos esperados",
-    "minProfit": "Ganancia mínima esperada", "liquidityForecast": "Pronóstico de liquidez (30 días)",
+    "title": "Resumen del mes",
+    "subtitle": "Actualizado al día de hoy",
+    "expectedRevenue": "Ingresos esperados",
+    "expectedExpenses": "Gastos esperados",
+    "minProfit": "Ganancia mínima esperada",
+    "liquidityForecast": "Pronóstico de liquidez (30 días)",
     "vsLastMonth": "vs mes anterior",
     "chart": {
       "title": "Ingresos vs. Gastos — Este mes",
-      "revenue": "Ingresos", "expenses": "Gastos",
-      "day": "Día", "amount": "Monto", "noData": "Sin datos para este mes."
+      "revenue": "Ingresos",
+      "expenses": "Gastos",
+      "day": "Día",
+      "amount": "Monto",
+      "noData": "Sin datos para este mes."
     },
     "risk": {
       "title": "Salud financiera",
-      "healthy": "Saludable", "warning": "Atención", "danger": "Riesgo",
+      "healthy": "Saludable",
+      "warning": "Atención",
+      "danger": "Riesgo",
       "healthyDesc": "Tus finanzas están en buen estado.",
       "warningDesc": "Hay señales de alerta. Revisa gastos.",
       "dangerDesc": "Flujo de caja bajo presión. Actúa pronto.",
-      "justification": "Justificación", "recommendations": "Recomendaciones",
+      "justification": "Justificación",
+      "recommendations": "Recomendaciones",
       "rec1_healthy": "Mantén 2 meses de gastos fijos como reserva.",
       "rec2_healthy": "Reinvierte excedente en inventario de alta rotación.",
       "rec1_warning": "Revisa facturas pendientes esta semana.",
@@ -92,15 +130,32 @@
       "ctaSecondary": "Iniciar Sesión"
     },
     "features": {
-      "title": "¿Por qué Coffeely?",
-      "feature1": { "title": "Predicción a 30 Días", "desc": "Visualiza días críticos de nómina y pago a proveedores antes de quedarte sin efectivo." },
-      "feature2": { "title": "Semáforo de Riesgo Accesible", "desc": "Diagnóstico financiero instantáneo con justificación en lenguaje sencillo." },
-      "feature3": { "title": "Hecho para Cafeterías", "desc": "Captura rápida diaria de ventas en efectivo y transferencias sin complicaciones." }
+      "title": "¿Por qué Capital Coffee?",
+      "feature1": {
+        "title": "Predicción a 30 Días",
+        "desc": "Visualiza días críticos de nómina y pago a proveedores antes de quedarte sin efectivo."
+      },
+      "feature2": {
+        "title": "Semáforo de Riesgo Accesible",
+        "desc": "Diagnóstico financiero instantáneo con justificación en lenguaje sencillo."
+      },
+      "feature3": {
+        "title": "Hecho para Cafeterías",
+        "desc": "Captura rápida diaria de ventas en efectivo y transferencias sin complicaciones."
+      }
     }
   },
   "modules": {
-    "dashboard": "Resumen", "cashflow": "Flujo de caja", "expenses": "Gastos",
-    "income": "Ingresos", "inventory": "Inventario", "reports": "Reportes", "settings": "Configuración"
+    "dashboard": "Resumen",
+    "cashflow": "Flujo de caja",
+    "expenses": "Gastos",
+    "income": "Ingresos",
+    "inventory": "Inventario",
+    "reports": "Reportes",
+    "settings": "Configuración"
   },
-  "placeholders": { "comingSoon": "Próximamente", "empty": "Sin datos" }
+  "placeholders": {
+    "comingSoon": "Próximamente",
+    "empty": "Sin datos"
+  }
 }

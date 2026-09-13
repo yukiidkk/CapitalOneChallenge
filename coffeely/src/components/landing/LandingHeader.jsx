@@ -6,13 +6,13 @@
  * - Botón "Iniciar Sesión" con Link de react-router-dom
  */
 import { Link } from 'react-router-dom'
-import { useLanguage }  from '../../contexts/LanguageContext'
-import { useCurrency }  from '../../contexts/CurrencyContext'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { useCurrency } from '../../contexts/CurrencyContext'
 import { useTranslation } from 'react-i18next'
 
 export default function LandingHeader() {
-  const { t }                                    = useTranslation()
-  const { language, changeLanguage, LANGUAGES }  = useLanguage()
+  const { t } = useTranslation()
+  const { language, changeLanguage, LANGUAGES } = useLanguage()
   const { currency, changeCurrency, CURRENCIES } = useCurrency()
 
   const selectCls = `text-xs bg-transparent border border-border rounded-lg px-2 py-1
@@ -42,7 +42,7 @@ export default function LandingHeader() {
           {/* Nombre + subtítulo */}
           <div className="leading-none">
             <span className="block text-lg font-bold text-dark-olive tracking-tight">
-              Coffeely
+              Capital Coffee
             </span>
             <span className="block text-[10px] text-text-muted uppercase tracking-widest
                              font-medium mt-0.5">

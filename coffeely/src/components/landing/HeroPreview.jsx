@@ -68,21 +68,21 @@ export default function HeroPreview() {
         {/* ── Micro-sección prueba social / resultado esperado ── */}
         <div className="mt-8 pt-8 border-t border-border">
           <p className="text-sm font-semibold text-dark-olive uppercase tracking-wider mb-4">
-            ¿Qué consigues con Coffeely?
+            ¿Qué consigues con Capital Coffee?
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               {
                 metric: '30 días',
-                label:  'de visibilidad financiera anticipada',
+                label: 'de visibilidad financiera anticipada',
               },
               {
                 metric: 'Alertas',
-                label:  'antes de que el efectivo sea crítico',
+                label: 'antes de que el efectivo sea crítico',
               },
               {
                 metric: 'Acciones',
-                label:  'concretas para proteger tu colchón de capital',
+                label: 'concretas para proteger tu colchón de capital',
               },
             ].map(({ metric, label }) => (
               <div

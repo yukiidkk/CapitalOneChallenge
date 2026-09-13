@@ -10,11 +10,11 @@
  * - Llama a getChatResponse(message, context) — sin lógica de restricción propia.
  */
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, MessageSquare, X, Bot }              from 'lucide-react'
-import { useApp }           from '../../context/CoffeeShopContext'
+import { Send, MessageSquare, X, Bot } from 'lucide-react'
+import { useApp } from '../../context/CoffeeShopContext'
 import { useDashboardData } from '../../hooks/useDashboardData'
-import { getChatResponse }  from '../../services/gemini/index'
-import Spinner              from '../ui/Spinner'
+import { getChatResponse } from '../../services/gemini/index'
+import Spinner from '../ui/Spinner'
 
 /* ── Sugerencias rápidas que se muestran después de una redirección ── */
 const QUICK_SUGGESTIONS = [
@@ -25,10 +25,10 @@ const QUICK_SUGGESTIONS = [
 
 /* ── Mensaje de bienvenida inicial ── */
 const WELCOME_MESSAGE = {
-  id:   'welcome',
+  id: 'welcome',
   role: 'assistant',
-  text: 'Hola, soy tu asistente financiero de Coffeely. Puedo ayudarte a entender tu flujo de caja, interpretar el semáforo de riesgo, analizar tus gastos y darte consejos prácticos para tu cafetería. ¿En qué puedo ayudarte hoy?',
-  ts:   Date.now(),
+  text: 'Hola, soy tu asistente financiero de Capital Coffee. Puedo ayudarte a entender tu flujo de caja, interpretar el semáforo de riesgo, analizar tus gastos y darte consejos prácticos para tu cafetería. ¿En qué puedo ayudarte hoy?',
+  ts: Date.now(),
 }
 
 /* ── Detecta si es un mensaje de redirección (fuera de tema).
@@ -101,17 +101,17 @@ function TypingIndicator() {
 
 /* ════════════════════════════════════════════════ */
 export default function AiChatbot() {
-  const { business }  = useApp()
-  const { metrics }   = useDashboardData()
+  const { business } = useApp()
+  const { metrics } = useDashboardData()
 
-  const [open, setOpen]       = useState(false)
+  const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([WELCOME_MESSAGE])
-  const [input, setInput]     = useState('')
-  const [typing, setTyping]   = useState(false)
+  const [input, setInput] = useState('')
+  const [typing, setTyping] = useState(false)
 
-  const bottomRef  = useRef(null)
-  const inputRef   = useRef(null)
-  const listRef    = useRef(null)
+  const bottomRef = useRef(null)
+  const inputRef = useRef(null)
+  const listRef = useRef(null)
 
   /* Scroll al último mensaje */
   useEffect(() => {
@@ -128,26 +128,26 @@ export default function AiChatbot() {
   /* Construir contexto desde el store */
   const buildContext = useCallback(() => {
     const mesActual = new Date().toISOString().slice(0, 7)
-    const diarios   = (business.registrosDiarios ?? [])
+    const diarios = (business.registrosDiarios ?? [])
       .filter(r => r.fecha?.startsWith(mesActual))
-    const ingresos  = diarios.reduce((s, r) => s + (r.ingresosTotales ?? 0), 0)
-    const gastos    = diarios.reduce(
+    const ingresos = diarios.reduce((s, r) => s + (r.ingresosTotales ?? 0), 0)
+    const gastos = diarios.reduce(
       (s, r) => s + (r.gastosFijos ?? 0) + (r.gastosVariables ?? 0), 0
     )
     const lastEntry = [...diarios].sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
 
     // Nivel de riesgo derivado de las métricas actuales
-    const rev = metrics?.expectedRevenue?.valueMXN   ?? 0
-    const exp = metrics?.expectedExpenses?.valueMXN  ?? 0
+    const rev = metrics?.expectedRevenue?.valueMXN ?? 0
+    const exp = metrics?.expectedExpenses?.valueMXN ?? 0
     const liq = metrics?.liquidityForecast?.valueMXN ?? 0
     const margin = rev > 0 ? (rev - exp) / rev : 0
     const nivel = margin >= 0.2 ? 'verde' : margin >= 0.08 ? 'amarillo' : 'rojo'
 
     return {
-      nombreCafeteria:      business.nombreCafeteria || '',
-      capitalDisponible:    lastEntry?.capitalDisponible ?? liq,
-      ingresosUltimoMes:    ingresos || rev,
-      gastosUltimoMes:      gastos   || exp,
+      nombreCafeteria: business.nombreCafeteria || '',
+      capitalDisponible: lastEntry?.capitalDisponible ?? liq,
+      ingresosUltimoMes: ingresos || rev,
+      gastosUltimoMes: gastos || exp,
       nivel,
     }
   }, [business, metrics])
@@ -163,15 +163,15 @@ export default function AiChatbot() {
     setTyping(true)
 
     try {
-      const ctx      = buildContext()
+      const ctx = buildContext()
       const response = await getChatResponse(msg, ctx)
-      const isRedir  = esRedireccion(response)
+      const isRedir = esRedireccion(response)
 
       setMessages(prev => [...prev, {
-        id:             Date.now() + 1,
-        role:           'assistant',
-        text:           response,
-        ts:             Date.now(),
+        id: Date.now() + 1,
+        role: 'assistant',
+        text: response,
+        ts: Date.now(),
         showSuggestions: isRedir,
       }])
     } finally {
@@ -214,7 +214,7 @@ export default function AiChatbot() {
       {open && (
         <div
           role="dialog"
-          aria-label="Asistente financiero Coffeely"
+          aria-label="Asistente financiero Capital Coffee"
           aria-modal="false"
           className="fixed bottom-24 right-6 z-40
             w-[calc(100vw-3rem)] max-w-sm
@@ -232,7 +232,7 @@ export default function AiChatbot() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-dark-olive leading-none">Asistente Financiero</p>
               <p className="text-[10px] text-text-muted mt-0.5 truncate">
-                {business.nombreCafeteria || 'Coffeely'}
+                {business.nombreCafeteria || 'Capital Coffee'}
               </p>
             </div>
             <button

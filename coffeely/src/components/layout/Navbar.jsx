@@ -3,22 +3,20 @@
  * Incluye logo, nombre del negocio, selectores y logout.
  */
 import { useState } from 'react'
-import { useTranslation }    from 'react-i18next'
-import { useNavigate }       from 'react-router-dom'
-import { useLanguage }       from '../../contexts/LanguageContext'
-import { useCurrency }       from '../../contexts/CurrencyContext'
-import { useAccessibility }  from '../../contexts/AccessibilityContext'
-import { useApp }            from '../../context/CoffeeShopContext'
-import { LogOut, Eye, Menu, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { useCurrency } from '../../contexts/CurrencyContext'
+import { useApp } from '../../context/CoffeeShopContext'
+import { LogOut, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
-  const { t }                                   = useTranslation()
+  const { t } = useTranslation()
   const { language, changeLanguage, LANGUAGES } = useLanguage()
   const { currency, changeCurrency, CURRENCIES } = useCurrency()
-  const { highContrast, toggleHighContrast }    = useAccessibility()
-  const { user, logout, business }              = useApp()
-  const navigate                                = useNavigate()
-  const [menuOpen, setMenuOpen]                 = useState(false)
+  const { user, logout, business } = useApp()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleLogout = () => { logout(); navigate('/') }
 
@@ -34,13 +32,6 @@ export default function Navbar() {
       <select value={currency} onChange={e => changeCurrency(e.target.value)} aria-label={t('nav.currency')} className={selectCls}>
         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
       </select>
-      <button onClick={toggleHighContrast} aria-pressed={highContrast} aria-label={t('accessibility.label')}
-        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border
-          transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-coffee/30
-          ${highContrast ? 'bg-dark-olive text-white border-dark-olive' : 'border-border text-text-muted hover:border-coffee'}`}>
-        <Eye size={13} aria-hidden="true" />
-        <span className="hidden sm:inline">{t('accessibility.toggle')}</span>
-      </button>
       {user ? (
         <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs font-medium
           text-text-muted hover:text-text-main border border-border hover:border-coffee
@@ -64,7 +55,7 @@ export default function Navbar() {
             <div className="w-9 h-9 rounded-xl flex items-center justify-center text-cream font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }} aria-hidden="true">CF</div>
             <div className="leading-none">
-              <span className="block text-base font-bold text-dark-olive tracking-tight">Coffeely</span>
+              <span className="block text-base font-bold text-dark-olive tracking-tight">Capital Coffee</span>
               <span className="block text-[10px] text-text-muted uppercase tracking-widest font-medium mt-0.5">
                 {business?.name || t('header.tagline')}
               </span>

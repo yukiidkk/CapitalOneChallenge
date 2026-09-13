@@ -19,25 +19,24 @@
  *   RedirectIfBusinessDone  — evita volver a /registro-negocio si ya completó
  *
  * Providers (exterior → interior):
- *   BrowserRouter → AccessibilityProvider → LanguageProvider
- *     → CurrencyProvider → AppProvider
+ *   BrowserRouter → LanguageProvider → CurrencyProvider → AppProvider
  */
 import './i18n'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AccessibilityProvider } from './contexts/AccessibilityContext'
-import { LanguageProvider }      from './contexts/LanguageContext'
-import { CurrencyProvider }      from './contexts/CurrencyContext'
-import { AppProvider, useApp }   from './context/CoffeeShopContext'
-import { useAuth }               from './hooks/useAuth'
-import ErrorBoundary             from './components/ErrorBoundary'
+import { LanguageProvider } from './contexts/LanguageContext'
+import { CurrencyProvider } from './contexts/CurrencyContext'
+import { AppProvider, useApp } from './context/CoffeeShopContext'
+import { useAuth } from './hooks/useAuth'
+import { useNoScrollOnNumber } from './hooks/useNoScrollOnNumber'
+import ErrorBoundary from './components/ErrorBoundary'
 
-import LandingPage              from './pages/LandingPage'
-import LoginPage                from './pages/LoginPage'
-import RegisterPage             from './pages/RegisterPage'
+import LandingPage from './pages/LandingPage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import BusinessRegistrationPage from './pages/BusinessRegistrationPage'
-import DailyEntryPage           from './pages/DailyEntryPage'
-import HistoricalDataPage       from './pages/HistoricalDataPage'
-import DashboardPage            from './pages/DashboardPage'
+import DailyEntryPage from './pages/DailyEntryPage'
+import HistoricalDataPage from './pages/HistoricalDataPage'
+import DashboardPage from './pages/DashboardPage'
 
 /* ── Spinner de pantalla completa mientras Supabase resuelve la sesión ── */
 function AuthLoading() {
@@ -57,7 +56,7 @@ function AuthLoading() {
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <AuthLoading />
-  if (!user)   return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   return children
 }
 
@@ -67,28 +66,28 @@ function RequireAuth({ children }) {
 ───────────────────────────────────────────────── */
 function RequireBusiness({ children }) {
   const { user, loading } = useAuth()
-  const { business }      = useApp()
+  const { business } = useApp()
   if (loading) return <AuthLoading />
-  if (!user)   return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   if (!business.registroNegocioCompletado) return <Navigate to="/registro-negocio" replace />
   return children
 }
 
 /* ─────────────────────────────────────────────────
    Guard 3: negocio + al menos 1 registro de datos
+   Todos los negocios nuevos van siempre a /captura-diaria
 ───────────────────────────────────────────────── */
 function RequireData({ children }) {
   const { user, loading } = useAuth()
-  const { business }      = useApp()
+  const { business } = useApp()
   if (loading) return <AuthLoading />
-  if (!user)   return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   if (!business.registroNegocioCompletado) return <Navigate to="/registro-negocio" replace />
 
-  const hasDailyData   = business.registrosDiarios?.length > 0
+  const hasDailyData = business.registrosDiarios?.length > 0
   const hasMonthlyData = business.registrosMensuales?.length > 0
   if (!hasDailyData && !hasMonthlyData) {
-    const dest = business.tieneHistorialFinanciero ? '/captura-historial' : '/captura-diaria'
-    return <Navigate to={dest} replace />
+    return <Navigate to="/captura-diaria" replace />
   }
   return children
 }
@@ -99,15 +98,15 @@ function RequireData({ children }) {
 ───────────────────────────────────────────────── */
 function RedirectIfBusinessDone({ children }) {
   const { user, loading } = useAuth()
-  const { business }      = useApp()
+  const { business } = useApp()
   if (loading) return <AuthLoading />
-  if (!user)   return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   if (business.registroNegocioCompletado) {
-    const hasDailyData   = business.registrosDiarios?.length > 0
+    const hasDailyData = business.registrosDiarios?.length > 0
     const hasMonthlyData = business.registrosMensuales?.length > 0
     if (hasDailyData || hasMonthlyData) return <Navigate to="/dashboard" replace />
-    const dest = business.tieneHistorialFinanciero ? '/captura-historial' : '/captura-diaria'
-    return <Navigate to={dest} replace />
+    // Siempre a captura diaria — no depende de tieneHistorialFinanciero
+    return <Navigate to="/captura-diaria" replace />
   }
   return children
 }
@@ -119,8 +118,8 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Públicas */}
-      <Route path="/"         element={<LandingPage />} />
-      <Route path="/login"    element={<LoginPage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
 
       {/* Registro de negocio: auth pero sin negocio completado */}
@@ -155,18 +154,19 @@ function AppRoutes() {
 }
 
 export default function App() {
+  // Desactiva el scroll del mouse en todos los inputs numéricos del proyecto
+  useNoScrollOnNumber()
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <AccessibilityProvider>
-          <LanguageProvider>
-            <CurrencyProvider>
-              <AppProvider>
-                <AppRoutes />
-              </AppProvider>
-            </CurrencyProvider>
-          </LanguageProvider>
-        </AccessibilityProvider>
+        <LanguageProvider>
+          <CurrencyProvider>
+            <AppProvider>
+              <AppRoutes />
+            </AppProvider>
+          </CurrencyProvider>
+        </LanguageProvider>
       </BrowserRouter>
     </ErrorBoundary>
   )

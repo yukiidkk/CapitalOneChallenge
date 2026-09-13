@@ -5,11 +5,11 @@
  * están al tope; la redirección usa useEffect.
  */
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate }                  from 'react-router-dom'
-import { useApp }                       from '../context/CoffeeShopContext'
-import { useCurrency }                  from '../contexts/CurrencyContext'
-import { useEntryFrequency }            from '../hooks/useEntryFrequency'
-import { upsertRegistroDiario }         from '../services/supabase/negociosService'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../context/CoffeeShopContext'
+import { useCurrency } from '../contexts/CurrencyContext'
+import { useEntryFrequency } from '../hooks/useEntryFrequency'
+import { upsertRegistroDiario } from '../services/supabase/negociosService'
 import { TrendingUp, Wallet, Receipt, PiggyBank, ShoppingCart, Hash } from 'lucide-react'
 
 const TODAY = new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
@@ -49,10 +49,10 @@ function MoneyField({ id, label, value, onChange, error, icon, hint, required = 
 
 /* ═══════════════════════════════════════════════ */
 export default function DailyEntryPage() {
-  const navigate                        = useNavigate()
+  const navigate = useNavigate()
   const { business, addRegistroDiario } = useApp()
-  const { currency, CURRENCIES }        = useCurrency()
-  const { frecuencia }                  = useEntryFrequency()
+  const { currency, CURRENCIES } = useCurrency()
+  const { frecuencia } = useEntryFrequency()
 
   const symbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? '$'
 
@@ -72,17 +72,17 @@ export default function DailyEntryPage() {
   )
 
   const [form, setForm] = useState({
-    ingresosTotales:   '',
+    ingresosTotales: '',
     capitalDisponible: '',
-    gastosFijos:       '',
-    gastosVariables:   '',
-    metaAhorro:        '',
-    numeroVentas:      '',
+    gastosFijos: '',
+    gastosVariables: '',
+    metaAhorro: '',
+    numeroVentas: '',
   })
-  const [errors, setErrors]                       = useState({})
-  const [serverError, setServerError]             = useState('')
-  const [saving, setSaving]                       = useState(false)
-  const [confirmOverwrite, setConfirmOverwrite]   = useState(false)
+  const [errors, setErrors] = useState({})
+  const [serverError, setServerError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false)
 
   const set = field => val => setForm(p => ({ ...p, [field]: val }))
 
@@ -91,7 +91,7 @@ export default function DailyEntryPage() {
     const required = ['ingresosTotales', 'capitalDisponible', 'gastosFijos', 'gastosVariables', 'metaAhorro']
     required.forEach(k => {
       if (form[k] === '' || form[k] === null) errs[k] = 'Este campo es obligatorio.'
-      else if (Number(form[k]) < 0)           errs[k] = 'El valor no puede ser negativo.'
+      else if (Number(form[k]) < 0) errs[k] = 'El valor no puede ser negativo.'
     })
     if (form.numeroVentas !== '' && (isNaN(Number(form.numeroVentas)) || Number(form.numeroVentas) < 0))
       errs.numeroVentas = 'Ingresa un número entero válido.'
@@ -109,13 +109,13 @@ export default function DailyEntryPage() {
     setSaving(true)
 
     const registro = {
-      fecha:             TODAY,
-      ingresosTotales:   Number(form.ingresosTotales),
+      fecha: TODAY,
+      ingresosTotales: Number(form.ingresosTotales),
       capitalDisponible: Number(form.capitalDisponible),
-      gastosFijos:       Number(form.gastosFijos),
-      gastosVariables:   Number(form.gastosVariables),
-      metaAhorro:        Number(form.metaAhorro),
-      numeroVentas:      form.numeroVentas !== '' ? Number(form.numeroVentas) : null,
+      gastosFijos: Number(form.gastosFijos),
+      gastosVariables: Number(form.gastosVariables),
+      metaAhorro: Number(form.metaAhorro),
+      numeroVentas: form.numeroVentas !== '' ? Number(form.numeroVentas) : null,
     }
 
     try {
@@ -177,7 +177,7 @@ export default function DailyEntryPage() {
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-cream font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }} aria-hidden="true">CF</div>
             <div>
-              <span className="block text-lg font-bold text-dark-olive">Coffeely</span>
+              <span className="block text-lg font-bold text-dark-olive">Capital Coffee</span>
               <span className="block text-xs text-text-muted capitalize">{todayLabel}</span>
             </div>
           </div>
@@ -197,35 +197,35 @@ export default function DailyEntryPage() {
             )}
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-              <MoneyField id="ing-tot"  label="Ingresos totales del día"
-                value={form.ingresosTotales}   onChange={set('ingresosTotales')}
+              <MoneyField id="ing-tot" label="Ingresos totales del día"
+                value={form.ingresosTotales} onChange={set('ingresosTotales')}
                 error={errors.ingresosTotales} icon={<TrendingUp size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="cap-disp" label="Capital disponible actual"
-                value={form.capitalDisponible}   onChange={set('capitalDisponible')}
+                value={form.capitalDisponible} onChange={set('capitalDisponible')}
                 error={errors.capitalDisponible} icon={<Wallet size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="gast-fij" label="Gastos fijos del día"
-                value={form.gastosFijos}   onChange={set('gastosFijos')}
+                value={form.gastosFijos} onChange={set('gastosFijos')}
                 error={errors.gastosFijos} icon={<Receipt size={16} />}
                 hint="Gastos que no cambian con las ventas: renta, sueldos, servicios."
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="gast-var" label="Gastos variables del día"
-                value={form.gastosVariables}   onChange={set('gastosVariables')}
+                value={form.gastosVariables} onChange={set('gastosVariables')}
                 error={errors.gastosVariables} icon={<ShoppingCart size={16} />}
                 hint="Gastos que varían con las ventas: insumos, materia prima."
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="meta-aho" label="Meta de ahorro"
-                value={form.metaAhorro}   onChange={set('metaAhorro')}
+                value={form.metaAhorro} onChange={set('metaAhorro')}
                 error={errors.metaAhorro} icon={<PiggyBank size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="num-ven" label="Número de ventas del día"
-                value={form.numeroVentas}   onChange={set('numeroVentas')}
+                value={form.numeroVentas} onChange={set('numeroVentas')}
                 error={errors.numeroVentas} icon={<Hash size={16} />}
                 required={false} placeholder="Ej. 45"
                 hint="Opcional — número entero de transacciones." />

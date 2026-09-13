@@ -5,20 +5,18 @@
  *   - Google         → supabase.auth.signInWithOAuth({ provider: 'google' })
  *   - Recovery       → supabase.auth.resetPasswordForEmail()
  */
-import { useState }         from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation }   from 'react-i18next'
-import { supabase }         from '../services/supabase/client'
-import { useLanguage }      from '../contexts/LanguageContext'
-import { useAccessibility } from '../contexts/AccessibilityContext'
-import FormField            from '../components/ui/FormField'
+import { useTranslation } from 'react-i18next'
+import { supabase } from '../services/supabase/client'
+import { useLanguage } from '../contexts/LanguageContext'
+import FormField from '../components/ui/FormField'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
-/* ── Controles de idioma + contraste ── */
+/* ── Controles de idioma ── */
 function AuthControls() {
   const { t } = useTranslation()
   const { language, changeLanguage, LANGUAGES } = useLanguage()
-  const { highContrast, toggleHighContrast }    = useAccessibility()
   const cls = `text-xs bg-transparent border border-border rounded-lg px-2 py-1
                text-text-muted cursor-pointer hover:border-coffee transition-colors
                focus:outline-none focus:ring-2 focus:ring-coffee/30`
@@ -28,15 +26,6 @@ function AuthControls() {
         aria-label={t('nav.language')} className={cls}>
         {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
       </select>
-      <button onClick={toggleHighContrast} aria-pressed={highContrast}
-        aria-label={t('accessibility.label')}
-        className={`text-xs px-2.5 py-1 rounded-lg border transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-coffee/30
-          ${highContrast
-            ? 'bg-dark-olive text-white border-dark-olive'
-            : 'border-border text-text-muted hover:border-coffee'}`}>
-        {t('accessibility.toggle')}
-      </button>
     </div>
   )
 }
@@ -45,25 +34,25 @@ function AuthControls() {
 function GoogleIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
     </svg>
   )
 }
 
 /* ══════════════════════════════════════════════ */
 export default function LoginPage() {
-  const { t }    = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
-  const [mode, setMode]               = useState('login') // 'login' | 'recovery'
-  const [form, setForm]               = useState({ email: '', password: '' })
-  const [errors, setErrors]           = useState({})
+  const [mode, setMode] = useState('login') // 'login' | 'recovery'
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
-  const [loading, setLoading]         = useState(false)
-  const [showPw, setShowPw]           = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [showPw, setShowPw] = useState(false)
   const [recoverySent, setRecoverySent] = useState(false)
 
   const set = field => e => setForm(p => ({ ...p, [field]: e.target.value }))
@@ -101,7 +90,7 @@ export default function LoginPage() {
         setRecoverySent(true)
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email:    form.email,
+          email: form.email,
           password: form.password,
         })
         if (error) throw error
@@ -141,7 +130,7 @@ export default function LoginPage() {
                             text-cream font-bold text-xl shadow-elevated mb-3"
               style={{ background: 'linear-gradient(135deg, #6B4426 0%, #4B5136 100%)' }}
               aria-hidden="true">CF</div>
-            <h1 className="text-2xl font-bold text-dark-olive tracking-tight">Coffeely</h1>
+            <h1 className="text-2xl font-bold text-dark-olive tracking-tight">Capital Coffee</h1>
             <p className="text-sm text-text-muted mt-1">{t('auth.welcomeSub')}</p>
           </div>
 
