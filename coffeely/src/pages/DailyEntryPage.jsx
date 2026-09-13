@@ -1,14 +1,15 @@
 /**
  * DailyEntryPage.jsx — /captura-diaria
- * Formulario de captura diaria para negocios nuevos.
- * Si ya existe un registro para hoy, pregunta si desea sobrescribirlo.
- * Al guardar: agrega a registrosDiarios y redirige a /dashboard.
+ * Guarda en Supabase via upsertRegistroDiario (UNIQUE negocio_id+fecha).
+ * El hook bug de useMemo-after-return está corregido: todos los hooks
+ * están al tope; la redirección usa useEffect.
  */
-import { useState, useMemo } from 'react'
-import { useNavigate }       from 'react-router-dom'
-import { useApp }            from '../context/CoffeeShopContext'
-import { useCurrency }       from '../contexts/CurrencyContext'
-import { useEntryFrequency } from '../hooks/useEntryFrequency'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate }                  from 'react-router-dom'
+import { useApp }                       from '../context/CoffeeShopContext'
+import { useCurrency }                  from '../contexts/CurrencyContext'
+import { useEntryFrequency }            from '../hooks/useEntryFrequency'
+import { upsertRegistroDiario }         from '../services/supabase/negociosService'
 import { TrendingUp, Wallet, Receipt, PiggyBank, ShoppingCart, Hash } from 'lucide-react'
 
 const TODAY = new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
@@ -26,14 +27,9 @@ function MoneyField({ id, label, value, onChange, error, icon, hint, required = 
           {icon}
         </span>
         <input
-          id={id}
-          type="number"
-          min="0"
-          step="0.01"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-invalid={!!error}
+          id={id} type="number" min="0" step="0.01"
+          value={value} onChange={e => onChange(e.target.value)}
+          placeholder={placeholder} aria-invalid={!!error}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
           className={`w-full rounded-xl border bg-white pl-10 pr-4 py-2.5 text-sm text-text-main
             placeholder:text-text-muted transition-colors
@@ -53,18 +49,21 @@ function MoneyField({ id, label, value, onChange, error, icon, hint, required = 
 
 /* ═══════════════════════════════════════════════ */
 export default function DailyEntryPage() {
-  const navigate     = useNavigate()
+  const navigate                        = useNavigate()
   const { business, addRegistroDiario } = useApp()
   const { currency, CURRENCIES }        = useCurrency()
   const { frecuencia }                  = useEntryFrequency()
 
   const symbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? '$'
 
-  /* Si corresponde mensual, redirigir */
-  if (frecuencia === 'mensual') {
-    navigate('/captura-historial', { replace: true })
-    return null
-  }
+  /* ── Todos los hooks ANTES de cualquier return condicional ── */
+
+  /* Redirige a mensual si corresponde — useEffect para no violar reglas de hooks */
+  useEffect(() => {
+    if (frecuencia === 'mensual') {
+      navigate('/captura-historial', { replace: true })
+    }
+  }, [frecuencia, navigate])
 
   /* Detectar si ya hay registro de hoy */
   const registroHoy = useMemo(
@@ -80,8 +79,10 @@ export default function DailyEntryPage() {
     metaAhorro:        '',
     numeroVentas:      '',
   })
-  const [errors, setErrors]         = useState({})
-  const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+  const [errors, setErrors]                       = useState({})
+  const [serverError, setServerError]             = useState('')
+  const [saving, setSaving]                       = useState(false)
+  const [confirmOverwrite, setConfirmOverwrite]   = useState(false)
 
   const set = field => val => setForm(p => ({ ...p, [field]: val }))
 
@@ -89,29 +90,25 @@ export default function DailyEntryPage() {
     const errs = {}
     const required = ['ingresosTotales', 'capitalDisponible', 'gastosFijos', 'gastosVariables', 'metaAhorro']
     required.forEach(k => {
-      if (form[k] === '' || form[k] === null) {
-        errs[k] = 'Este campo es obligatorio.'
-      } else if (Number(form[k]) < 0) {
-        errs[k] = 'El valor no puede ser negativo.'
-      }
+      if (form[k] === '' || form[k] === null) errs[k] = 'Este campo es obligatorio.'
+      else if (Number(form[k]) < 0)           errs[k] = 'El valor no puede ser negativo.'
     })
-    if (form.numeroVentas !== '' && (isNaN(Number(form.numeroVentas)) || Number(form.numeroVentas) < 0)) {
+    if (form.numeroVentas !== '' && (isNaN(Number(form.numeroVentas)) || Number(form.numeroVentas) < 0))
       errs.numeroVentas = 'Ingresa un número entero válido.'
-    }
     return errs
   }
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
-    if (registroHoy && !confirmOverwrite) {
-      setConfirmOverwrite(true)
-      return
-    }
+    if (registroHoy && !confirmOverwrite) { setConfirmOverwrite(true); return }
+
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
+    setServerError('')
+    setSaving(true)
 
-    addRegistroDiario({
+    const registro = {
       fecha:             TODAY,
       ingresosTotales:   Number(form.ingresosTotales),
       capitalDisponible: Number(form.capitalDisponible),
@@ -119,12 +116,27 @@ export default function DailyEntryPage() {
       gastosVariables:   Number(form.gastosVariables),
       metaAhorro:        Number(form.metaAhorro),
       numeroVentas:      form.numeroVentas !== '' ? Number(form.numeroVentas) : null,
-      moneda:            currency,
-    })
-    navigate('/dashboard')
+    }
+
+    try {
+      // 1. Guardar en Supabase (upsert por UNIQUE negocio_id + fecha)
+      const negocioId = business.id
+      if (!negocioId) throw new Error('No se encontró el negocio. Recarga la página.')
+      const saved = await upsertRegistroDiario(negocioId, registro)
+
+      // 2. Actualizar estado local optimistamente
+      addRegistroDiario(saved)
+
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('[DailyEntryPage]', err)
+      setServerError(err.message ?? 'Error al guardar. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  /* ── Si ya registró hoy y no pide sobreescribir ── */
+  /* ── Pantalla de confirmación de sobreescritura ── */
   if (registroHoy && !confirmOverwrite) {
     return (
       <div className="min-h-screen bg-bg-light flex items-center justify-center px-4">
@@ -138,18 +150,13 @@ export default function DailyEntryPage() {
             ¿Deseas actualizar los datos de hoy?
           </p>
           <div className="flex flex-col gap-3">
-            <button
-              onClick={() => setConfirmOverwrite(true)}
-              className="btn-primary w-full justify-center"
-            >
+            <button onClick={() => setConfirmOverwrite(true)} className="btn-primary w-full justify-center">
               Sí, actualizar datos de hoy
             </button>
-            <button
-              onClick={() => navigate('/dashboard')}
+            <button onClick={() => navigate('/dashboard')}
               className="w-full text-sm text-text-muted hover:text-text-main font-medium
                 py-2.5 rounded-xl border border-border hover:border-beige transition-colors
-                focus:outline-none focus:ring-2 focus:ring-coffee/30"
-            >
+                focus:outline-none focus:ring-2 focus:ring-coffee/30">
               No, ir al Dashboard
             </button>
           </div>
@@ -158,9 +165,7 @@ export default function DailyEntryPage() {
     )
   }
 
-  const todayLabel = new Date().toLocaleDateString('es-MX', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
+  const todayLabel = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <div className="min-h-screen bg-bg-light flex flex-col">
@@ -184,44 +189,56 @@ export default function DailyEntryPage() {
               Entre más consistente seas, más precisas serán tus predicciones.
             </p>
 
-            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+            {serverError && (
+              <div role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200
+                rounded-lg px-3 py-2 flex items-center gap-1.5 mb-4">
+                <span aria-hidden="true">⚠</span>{serverError}
+              </div>
+            )}
 
-              <MoneyField id="ing-tot" label="Ingresos totales del día"
-                value={form.ingresosTotales} onChange={set('ingresosTotales')}
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+              <MoneyField id="ing-tot"  label="Ingresos totales del día"
+                value={form.ingresosTotales}   onChange={set('ingresosTotales')}
                 error={errors.ingresosTotales} icon={<TrendingUp size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="cap-disp" label="Capital disponible actual"
-                value={form.capitalDisponible} onChange={set('capitalDisponible')}
+                value={form.capitalDisponible}   onChange={set('capitalDisponible')}
                 error={errors.capitalDisponible} icon={<Wallet size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="gast-fij" label="Gastos fijos del día"
-                value={form.gastosFijos} onChange={set('gastosFijos')}
+                value={form.gastosFijos}   onChange={set('gastosFijos')}
                 error={errors.gastosFijos} icon={<Receipt size={16} />}
                 hint="Gastos que no cambian con las ventas: renta, sueldos, servicios."
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="gast-var" label="Gastos variables del día"
-                value={form.gastosVariables} onChange={set('gastosVariables')}
+                value={form.gastosVariables}   onChange={set('gastosVariables')}
                 error={errors.gastosVariables} icon={<ShoppingCart size={16} />}
                 hint="Gastos que varían con las ventas: insumos, materia prima."
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="meta-aho" label="Meta de ahorro"
-                value={form.metaAhorro} onChange={set('metaAhorro')}
+                value={form.metaAhorro}   onChange={set('metaAhorro')}
                 error={errors.metaAhorro} icon={<PiggyBank size={16} />}
                 placeholder={`${symbol}0.00`} />
 
               <MoneyField id="num-ven" label="Número de ventas del día"
-                value={form.numeroVentas} onChange={set('numeroVentas')}
+                value={form.numeroVentas}   onChange={set('numeroVentas')}
                 error={errors.numeroVentas} icon={<Hash size={16} />}
-                required={false} placeholder="Ej. 45" hint="Opcional — número entero de transacciones." />
+                required={false} placeholder="Ej. 45"
+                hint="Opcional — número entero de transacciones." />
 
-              <button type="submit" className="btn-primary w-full justify-center mt-2">
-                Guardar y ver mi Dashboard
+              <button type="submit" disabled={saving}
+                className="btn-primary w-full justify-center mt-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando…
+                  </span>
+                ) : 'Guardar y ver mi Dashboard'}
               </button>
-
             </form>
           </div>
         </div>

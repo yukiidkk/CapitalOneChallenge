@@ -7,6 +7,8 @@
 import { useState } from 'react'
 import { useNavigate }    from 'react-router-dom'
 import { useApp }         from '../context/CoffeeShopContext'
+import { supabase }       from '../services/supabase/client'
+import { insertNegocio }  from '../services/supabase/negociosService'
 import { Coffee, Clock, Calendar, ChevronRight, ChevronLeft, Copy, Building2, TrendingUp } from 'lucide-react'
 
 const DIAS = [
@@ -113,10 +115,12 @@ function DayRow({ dia, config, onChange }) {
 /* ════════════════════════════════════════════════ */
 export default function BusinessRegistrationPage() {
   const navigate = useNavigate()
-  const { business, saveBusinessInfo, completeBusinessRegistration } = useApp()
+  const { business, saveBusinessInfo, setNegocioData } = useApp()
 
-  const [step, setStep] = useState(1)
+  const [step, setStep]     = useState(1)
   const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [serverError, setServerError] = useState('')
 
   /* ── Paso 1: nombre + horario ── */
   const [nombre, setNombre] = useState(business.nombreCafeteria || '')
@@ -150,13 +154,39 @@ export default function BusinessRegistrationPage() {
   /* ── Paso 2: historial ── */
   const [historial, setHistorial] = useState(null) // true | false
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (historial === null) {
       setErrors({ historial: 'Selecciona una opción para continuar.' })
       return
     }
-    completeBusinessRegistration(historial)
-    navigate(historial ? '/captura-historial' : '/captura-diaria')
+    setServerError('')
+    setSaving(true)
+    try {
+      const { data: { user: supaUser } } = await supabase.auth.getUser()
+      if (!supaUser) throw new Error('Sin sesión activa. Vuelve a iniciar sesión.')
+
+      // Insertar negocio en Supabase
+      const negocio = await insertNegocio({
+        usuarioId:                supaUser.id,
+        nombreCafeteria:          nombre.trim(),
+        horarioNegocio:           horario,
+        tieneHistorialFinanciero: historial,
+      })
+
+      // Actualizar estado global con los datos reales (incluyendo el id del negocio)
+      setNegocioData({
+        ...negocio,
+        registrosDiarios:   [],
+        registrosMensuales: [],
+      })
+
+      navigate(historial ? '/captura-historial' : '/captura-diaria')
+    } catch (err) {
+      console.error('[BusinessRegistrationPage]', err)
+      setServerError(err.message ?? 'Error al guardar el negocio. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   /* ── Indicador de pasos ── */
@@ -341,6 +371,13 @@ export default function BusinessRegistrationPage() {
                 </p>
               )}
 
+              {serverError && (
+                <div role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200
+                  rounded-lg px-3 py-2 flex items-center gap-1.5 mb-4">
+                  <span aria-hidden="true">⚠</span>{serverError}
+                </div>
+              )}
+
               {/* Acciones */}
               <div className="flex items-center justify-between mt-8">
                 <button
@@ -355,10 +392,20 @@ export default function BusinessRegistrationPage() {
                 <button
                   type="button"
                   onClick={handleFinish}
-                  className="btn-primary flex items-center gap-2"
+                  disabled={saving}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Comenzar
-                  <ChevronRight size={16} aria-hidden="true" />
+                  {saving ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Guardando…
+                    </>
+                  ) : (
+                    <>
+                      Comenzar
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>

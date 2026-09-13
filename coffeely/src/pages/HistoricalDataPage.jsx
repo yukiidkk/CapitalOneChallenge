@@ -9,6 +9,7 @@ import { useNavigate }       from 'react-router-dom'
 import { useApp }            from '../context/CoffeeShopContext'
 import { useCurrency }       from '../contexts/CurrencyContext'
 import { useEntryFrequency } from '../hooks/useEntryFrequency'
+import { upsertEstadoMensual } from '../services/supabase/negociosService'
 import { Calendar, TrendingUp, Receipt, ShoppingCart, Wallet, Plus, Trash2, Calculator } from 'lucide-react'
 
 /* Genera lista de "YYYY-MM" para los últimos 24 meses */
@@ -180,10 +181,12 @@ export default function HistoricalDataPage() {
   const { frecuencia }                   = useEntryFrequency()
 
   const symbol      = CURRENCIES.find(c => c.code === currency)?.symbol ?? '$'
-  const modoMensual = frecuencia === 'mensual' // carga futura, solo 1 mes
+  const modoMensual = frecuencia === 'mensual'
 
-  const [entries, setEntries] = useState([emptyEntry()])
-  const [errors, setErrors]   = useState({})
+  const [entries, setEntries]             = useState([emptyEntry()])
+  const [errors, setErrors]               = useState({})
+  const [serverError, setServerError]     = useState('')
+  const [saving, setSaving]               = useState(false)
 
   const updateEntry = (idx, data) => setEntries(prev => prev.map((e, i) => i === idx ? data : e))
   const removeEntry = (idx)      => setEntries(prev => prev.filter((_, i) => i !== idx))
@@ -209,28 +212,47 @@ export default function HistoricalDataPage() {
     return errs
   }
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
+    setServerError('')
+    setSaving(true)
 
-    entries.forEach(entry => {
-      const utilidad = entry.overrideUtilidad
-        ? Number(entry.utilidadNetaManual)
-        : Number(entry.ingresosTotales) - Number(entry.gastosFijos) - Number(entry.gastosVariables)
+    try {
+      const negocioId = business.id
+      if (!negocioId) throw new Error('No se encontró el negocio. Recarga la página.')
 
-      addRegistroMensual({
-        mes:                     entry.mes,
-        ingresosTotales:         Number(entry.ingresosTotales),
-        gastosFijos:             Number(entry.gastosFijos),
-        gastosVariables:         Number(entry.gastosVariables),
-        utilidadNeta:            utilidad,
-        capitalDisponibleCierre: Number(entry.capitalDisponibleCierre),
-        moneda:                  currency,
+      // Upsert todos los meses en paralelo
+      const saves = entries.map(entry => {
+        const utilidad = entry.overrideUtilidad
+          ? Number(entry.utilidadNetaManual)
+          : Number(entry.ingresosTotales) - Number(entry.gastosFijos) - Number(entry.gastosVariables)
+
+        const registro = {
+          mes:                     entry.mes,
+          ingresosTotales:         Number(entry.ingresosTotales),
+          gastosFijos:             Number(entry.gastosFijos),
+          gastosVariables:         Number(entry.gastosVariables),
+          utilidadNeta:            utilidad,
+          capitalDisponibleCierre: Number(entry.capitalDisponibleCierre),
+        }
+        return upsertEstadoMensual(negocioId, registro)
       })
-    })
-    navigate('/dashboard')
+
+      const saved = await Promise.all(saves)
+
+      // Actualizar estado local
+      saved.forEach(r => addRegistroMensual(r))
+
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('[HistoricalDataPage]', err)
+      setServerError(err.message ?? 'Error al guardar. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -298,8 +320,22 @@ export default function HistoricalDataPage() {
                 </button>
               )}
 
-              <button type="submit" className="btn-primary w-full justify-center mt-2">
-                Guardar y ver mi Dashboard
+              {/* Error del servidor */}
+              {serverError && (
+                <div role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200
+                  rounded-lg px-3 py-2 flex items-center gap-1.5">
+                  <span aria-hidden="true">⚠</span>{serverError}
+                </div>
+              )}
+
+              <button type="submit" disabled={saving}
+                className="btn-primary w-full justify-center mt-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando…
+                  </span>
+                ) : 'Guardar y ver mi Dashboard'}
               </button>
 
             </form>

@@ -1,30 +1,46 @@
 /**
  * CoffeeShopContext.jsx
- * Estado global de la app. Todo se persiste en localStorage bajo la clave
- * "coffeely_state" para sobrevivir recargas sin backend.
+ * Fuente de verdad: Supabase.
+ * localStorage solo como caché de última sesión para evitar
+ * pantalla en blanco en la primera carga mientras se resuelve la BD.
  *
- * Modelo de datos:
- *   user                       — sesión activa
- *   business                   — datos del negocio + dataset financiero
+ * Modelo de estado:
+ *   user                        — usuario de Supabase Auth (o null)
+ *   business
+ *     ├ id                      — UUID del negocio en Supabase
  *     ├ nombreCafeteria
- *     ├ horarioNegocio          — objeto por día de la semana
- *     ├ tieneHistorialFinanciero — boolean | null
- *     ├ fechaRegistroNegocio    — ISO string
- *     ├ registroNegocioCompletado — boolean
- *     ├ registrosDiarios        — array
- *     └ registrosMensuales      — array
+ *     ├ horarioNegocio
+ *     ├ tieneHistorialFinanciero
+ *     ├ tipoFormulario           — 'diario' | 'mensual'
+ *     ├ fechaRegistroNegocio
+ *     ├ registroNegocioCompletado
+ *     ├ registrosDiarios         — array (cargado desde Supabase)
+ *     └ registrosMensuales       — array (cargado desde Supabase)
+ *   loading                     — true mientras se carga desde Supabase
  */
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import {
+  createContext, useContext, useState,
+  useEffect, useCallback, useRef,
+} from 'react'
+import { supabase }          from '../services/supabase/client'
+import {
+  getNegocio,
+  insertNegocio,
+  getRegistrosDiarios,
+  upsertRegistroDiario,
+  getEstadosMensuales,
+  upsertEstadoMensual,
+} from '../services/supabase/negociosService'
 
 const CoffeeShopContext = createContext(null)
-const LS_KEY = 'coffeely_state'
+const LS_KEY = 'coffeely_cache'
 
-/* ── Horario vacío para un día ── */
+/* ── Horario vacío por día ── */
 const emptyDay = () => ({ abre: '08:00', cierra: '22:00', cerrado: false })
 
-/* ── Estado inicial limpio (sin mocks) ── */
 const INITIAL_BUSINESS = {
-  nombreCafeteria: '',
+  id:                         null,
+  nombreCafeteria:            '',
   horarioNegocio: {
     lunes:     emptyDay(),
     martes:    emptyDay(),
@@ -34,130 +50,205 @@ const INITIAL_BUSINESS = {
     sabado:    emptyDay(),
     domingo:   { ...emptyDay(), cerrado: true },
   },
-  tieneHistorialFinanciero: null,
-  fechaRegistroNegocio: null,
-  registroNegocioCompletado: false,
-  registrosDiarios: [],
-  registrosMensuales: [],
-  // Campos legacy que aún usan componentes existentes — se mantienen por compat
-  currency: 'MXN',
+  tieneHistorialFinanciero:   null,
+  tipoFormulario:             'diario',
+  fechaRegistroNegocio:       null,
+  registroNegocioCompletado:  false,
+  registrosDiarios:           [],
+  registrosMensuales:         [],
+  currency:                   'MXN', // compat legacy
 }
 
-/* ── Leer desde localStorage ── */
-function loadState() {
+/* ── Caché localStorage ── */
+function loadCache() {
   try {
     const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return { user: null, business: INITIAL_BUSINESS }
-    return JSON.parse(raw)
-  } catch {
-    return { user: null, business: INITIAL_BUSINESS }
-  }
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
 }
-
-/* ── Guardar en localStorage ── */
-function saveState(user, business) {
+function saveCache(user, business) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({ user, business }))
-  } catch {
-    // quota exceeded — silencioso
-  }
+  } catch { /* quota exceeded — silencioso */ }
+}
+function clearCache() {
+  localStorage.removeItem(LS_KEY)
 }
 
-/* ══════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════ */
 export function AppProvider({ children }) {
-  const stored = loadState()
-  const [user, setUser]         = useState(stored.user)
-  const [business, setBusiness] = useState({ ...INITIAL_BUSINESS, ...stored.business })
+  const cache = loadCache()
 
-  /* Persistir cada vez que cambie user o business */
+  const [user,     setUser]     = useState(cache?.user     ?? null)
+  const [business, setBusiness] = useState({ ...INITIAL_BUSINESS, ...(cache?.business ?? {}) })
+  const [loading,  setLoading]  = useState(true)
+
+  // Evita doble-fetch en StrictMode
+  const fetchedRef = useRef(false)
+
+  /* ── Cargar datos reales desde Supabase cuando hay sesión ── */
+  const loadFromSupabase = useCallback(async (supabaseUser) => {
+    if (!supabaseUser) {
+      setUser(null)
+      setBusiness(INITIAL_BUSINESS)
+      setLoading(false)
+      clearCache()
+      return
+    }
+
+    setUser({ id: supabaseUser.id, email: supabaseUser.email, name: supabaseUser.user_metadata?.user_name ?? supabaseUser.email })
+
+    try {
+      // 1. Negocio
+      const negocio = await getNegocio(supabaseUser.id)
+
+      if (!negocio) {
+        // Usuario nuevo sin negocio registrado
+        setBusiness(prev => ({ ...INITIAL_BUSINESS, registroNegocioCompletado: false }))
+        setLoading(false)
+        return
+      }
+
+      // 2. Registros del negocio en paralelo
+      const [diarios, mensuales] = await Promise.all([
+        getRegistrosDiarios(negocio.id),
+        getEstadosMensuales(negocio.id),
+      ])
+
+      const fullBusiness = {
+        ...negocio,
+        registrosDiarios:  diarios,
+        registrosMensuales: mensuales,
+        currency: cache?.business?.currency ?? 'MXN',
+      }
+
+      setBusiness(fullBusiness)
+      saveCache({ id: supabaseUser.id, email: supabaseUser.email, name: supabaseUser.user_metadata?.user_name ?? supabaseUser.email }, fullBusiness)
+    } catch (err) {
+      console.error('[AppProvider] Error cargando datos de Supabase:', err)
+      // Fallback al caché si hay error de red
+      if (cache?.business) setBusiness(prev => ({ ...INITIAL_BUSINESS, ...cache.business }))
+    } finally {
+      setLoading(false)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Escuchar cambios de sesión de Supabase Auth ── */
   useEffect(() => {
-    saveState(user, business)
-  }, [user, business])
+    // Sesión inicial
+    supabase.auth.getSession().then(({ data }) => {
+      if (!fetchedRef.current) {
+        fetchedRef.current = true
+        loadFromSupabase(data.session?.user ?? null)
+      }
+    })
 
-  /* ── Auth ── */
+    // Cambios posteriores (login, logout, OAuth callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      fetchedRef.current = true
+      loadFromSupabase(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [loadFromSupabase])
+
+  /* ── Auth helpers ── */
   const login = useCallback((userData) => {
-    setUser(userData ?? { email: 'demo@coffeely.mx', name: 'Demo' })
+    // Usado solo como fallback de compatibilidad — la sesión real la maneja Supabase
+    setUser(userData ?? null)
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut()
     setUser(null)
     setBusiness(INITIAL_BUSINESS)
-    localStorage.removeItem(LS_KEY)
+    clearCache()
   }, [])
 
-  /* ── Negocio ── */
-  const updateBusiness = useCallback((patch) => {
-    setBusiness(prev => ({ ...prev, ...patch }))
-  }, [])
-
-  /* Completa el paso 1 del registro: nombre + horario */
+  /* ── Negocio: guardar nombre + horario (paso 1) en estado local ── */
   const saveBusinessInfo = useCallback(({ nombreCafeteria, horarioNegocio }) => {
     setBusiness(prev => ({ ...prev, nombreCafeteria, horarioNegocio }))
   }, [])
 
-  /* Completa el paso 2: ¿tiene historial? */
-  const saveHistorialChoice = useCallback((tieneHistorialFinanciero) => {
-    setBusiness(prev => ({ ...prev, tieneHistorialFinanciero }))
-  }, [])
+  /* ── Negocio: completar registro (paso 2) + insertar en Supabase ── */
+  const completeBusinessRegistration = useCallback(async (tieneHistorialFinanciero) => {
+    const { data: { user: supaUser } } = await supabase.auth.getUser()
+    if (!supaUser) throw new Error('Sin sesión activa')
 
-  /* Marca el registro de negocio como completado */
-  const completeBusinessRegistration = useCallback((tieneHistorialFinanciero) => {
     setBusiness(prev => ({
       ...prev,
       tieneHistorialFinanciero,
-      fechaRegistroNegocio: new Date().toISOString(),
+      fechaRegistroNegocio:      new Date().toISOString(),
       registroNegocioCompletado: true,
     }))
+
+    // El insert real lo hace BusinessRegistrationPage llamando a insertNegocio()
+    // directamente — aquí solo actualizamos estado local para que los guards
+    // redirijan inmediatamente sin esperar un re-fetch.
   }, [])
 
-  /* ── Registros diarios ── */
-  const addRegistroDiario = useCallback((registro) => {
-    // registro: { fecha, ingresosTotales, capitalDisponible, gastosFijos,
-    //             gastosVariables, metaAhorro, numeroVentas }
+  /* ── Guardar negocio recién creado en el estado ── */
+  const setNegocioData = useCallback((negocioData) => {
+    setBusiness(prev => {
+      const updated = { ...prev, ...negocioData }
+      saveCache(user, updated)
+      return updated
+    })
+  }, [user])
+
+  /* ── Registros diarios: upsert local + Supabase ── */
+  const addRegistroDiario = useCallback(async (registro) => {
     setBusiness(prev => {
       const existing = prev.registrosDiarios.findIndex(r => r.fecha === registro.fecha)
-      const updated = [...prev.registrosDiarios]
-      if (existing >= 0) {
-        updated[existing] = registro        // sobrescribe
-      } else {
-        updated.push(registro)
-      }
-      return { ...prev, registrosDiarios: updated.sort((a, b) => a.fecha.localeCompare(b.fecha)) }
+      const updated  = [...prev.registrosDiarios]
+      if (existing >= 0) updated[existing] = registro
+      else updated.push(registro)
+      const next = { ...prev, registrosDiarios: updated.sort((a, b) => a.fecha.localeCompare(b.fecha)) }
+      saveCache(user, next)
+      return next
     })
-  }, [])
+    // El upsert real a Supabase lo hace DailyEntryPage directamente
+  }, [user])
 
-  /* ── Registros mensuales ── */
-  const addRegistroMensual = useCallback((registro) => {
-    // registro: { mes, ingresosTotales, gastosFijos, gastosVariables,
-    //             utilidadNeta, capitalDisponibleCierre }
+  /* ── Registros mensuales: upsert local ── */
+  const addRegistroMensual = useCallback(async (registro) => {
     setBusiness(prev => {
       const existing = prev.registrosMensuales.findIndex(r => r.mes === registro.mes)
-      const updated = [...prev.registrosMensuales]
-      if (existing >= 0) {
-        updated[existing] = registro
-      } else {
-        updated.push(registro)
-      }
-      return { ...prev, registrosMensuales: updated.sort((a, b) => a.mes.localeCompare(b.mes)) }
+      const updated  = [...prev.registrosMensuales]
+      if (existing >= 0) updated[existing] = registro
+      else updated.push(registro)
+      const next = { ...prev, registrosMensuales: updated.sort((a, b) => a.mes.localeCompare(b.mes)) }
+      saveCache(user, next)
+      return next
     })
-  }, [])
+    // El upsert real a Supabase lo hace HistoricalDataPage directamente
+  }, [user])
 
-  /* ── Compat: finishOnboarding (OnboardingPage legacy) ── */
-  const finishOnboarding = useCallback((data) => {
-    setBusiness(prev => ({ ...prev, ...data }))
-  }, [])
+  /* ── Refrescar datos desde Supabase ── */
+  const refreshData = useCallback(async () => {
+    const { data: { user: supaUser } } = await supabase.auth.getUser()
+    if (supaUser) await loadFromSupabase(supaUser)
+  }, [loadFromSupabase])
+
+  /* ── Compat legacy ── */
+  const updateBusiness   = useCallback((patch) => setBusiness(prev => ({ ...prev, ...patch })), [])
+  const saveHistorialChoice = useCallback((v) => setBusiness(prev => ({ ...prev, tieneHistorialFinanciero: v })), [])
+  const finishOnboarding = useCallback((data) => setBusiness(prev => ({ ...prev, ...data })), [])
 
   const value = {
     user,
     business,
+    loading,
     login,
     logout,
     updateBusiness,
     saveBusinessInfo,
     saveHistorialChoice,
     completeBusinessRegistration,
+    setNegocioData,
     addRegistroDiario,
     addRegistroMensual,
+    refreshData,
     finishOnboarding,
   }
 
